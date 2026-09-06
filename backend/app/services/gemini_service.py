@@ -290,12 +290,12 @@ def extract_medical_data(
 
                 prompt_text = "Extract all real clinical entities from this uploaded medical document into the strict JSON schema provided."
                 if extracted_pdf_text:
-                    prompt_text += f"\n\n--- EXTRACTED RAW TEXT FROM DOCUMENT ---\n{extracted_pdf_text[:12000]}"
+                    prompt_text += f"\n\n--- EXTRACTED RAW TEXT FROM DOCUMENT ---\n{extracted_pdf_text[:15000]}"
 
                 parts = [prompt_text]
                 
-                # Attach multimodal binary part if image or small PDF
-                if not is_pdf or len(file_bytes) < 4 * 1024 * 1024:
+                # If image, attach image binary for vision OCR
+                if not extracted_pdf_text and len(file_bytes) > 0 and len(file_bytes) < 4 * 1024 * 1024:
                     parts.append({
                         "mime_type": mime_type if mime_type in ["application/pdf", "image/png", "image/jpeg", "image/webp"] else "image/jpeg",
                         "data": file_bytes,
