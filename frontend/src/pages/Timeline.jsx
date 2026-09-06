@@ -21,6 +21,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { getDocumentViewUrl } from '../lib/documentUrl';
 
 const TYPE_CONFIG = {
   prescription: {
@@ -482,7 +483,7 @@ export const Timeline = () => {
 
                               {record.document && (
                                 <a
-                                  href={record.document.file_url}
+                                  href={getDocumentViewUrl(record.document)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-brand-700 hover:text-brand-800 font-bold"

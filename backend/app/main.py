@@ -19,8 +19,16 @@ from app.services.storage_service import LOCAL_UPLOAD_DIR
 async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
+        # Ensure file_data_base64 column exists in existing DBs
+        from sqlalchemy import inspect, text
+        inspector = inspect(engine)
+        columns = [c['name'] for c in inspector.get_columns('documents')]
+        if 'file_data_base64' not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE documents ADD COLUMN file_data_base64 TEXT;"))
+            print("[Database] Successfully added file_data_base64 column to documents table.")
     except Exception as e:
-        print(f"[Warning] Could not auto-sync tables on startup: {e}")
+        print(f"[Warning] Database schema startup check note: {e}")
     yield
 
 

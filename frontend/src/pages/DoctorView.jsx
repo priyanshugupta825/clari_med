@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { format, parseISO } from 'date-fns';
+import { getDocumentViewUrl } from '../lib/documentUrl';
 
 const apiBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -391,7 +392,7 @@ export const DoctorView = () => {
                       )}
                       {enc.document && (
                         <a
-                          href={enc.document.file_url}
+                          href={getDocumentViewUrl(enc.document)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-brand-700 font-bold hover:underline pt-1"

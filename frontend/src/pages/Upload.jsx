@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import apiClient from '../api/client';
+import { getDocumentViewUrl } from '../lib/documentUrl';
 
 export const Upload = () => {
   const navigate = useNavigate();
@@ -522,7 +523,7 @@ export const Upload = () => {
 
                   <div className="flex items-center justify-between pt-1 border-t border-brand-100/60 text-xs">
                     <a
-                      href={doc.file_url}
+                      href={getDocumentViewUrl(doc)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 font-bold text-brand-700 hover:text-brand-900"

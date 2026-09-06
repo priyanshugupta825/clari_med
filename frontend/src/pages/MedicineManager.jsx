@@ -20,6 +20,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { getDocumentViewUrl } from '../lib/documentUrl';
 
 export const MedicineManager = () => {
   const { user } = useAuth();
@@ -69,7 +70,7 @@ export const MedicineManager = () => {
                   prescribedBy: r.doctor_name || 'Consulting Physician',
                   facilityName: r.facility_name || 'Healthcare Clinic',
                   recordDate: r.record_date,
-                  sourceDocUrl: r.document?.file_url || null,
+                  sourceDocUrl: getDocumentViewUrl(r.document),
                   sourceDocName: r.document?.file_name || 'Prescription',
                 });
               }

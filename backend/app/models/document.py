@@ -15,6 +15,7 @@ class Document(Base):
     file_url = Column(String(1000), nullable=False)   # Signed or public storage URL
     mime_type = Column(String(100), nullable=True)   # e.g., application/pdf, image/jpeg
     file_size_bytes = Column(BigInteger, nullable=True)
+    file_data_base64 = Column(Text, nullable=True)   # Base64 encoded file for fail-proof streaming
     
     document_type = Column(String(50), default="prescription", nullable=False)  # prescription, lab_report, discharge_summary, invoice, vaccine_cert, scan
     title = Column(String(255), nullable=True)
