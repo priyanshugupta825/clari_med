@@ -5,7 +5,7 @@ import json
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Fragmented Health Record API"
+    APP_NAME: str = "ClariMed API"
     APP_VERSION: str = "1.0.0"
     APP_ENV: str = "development"
     DEBUG: bool = True

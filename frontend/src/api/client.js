@@ -11,17 +11,33 @@ const apiClient = axios.create({
   timeout: 30000,
 });
 
-// Request interceptor to attach Supabase JWT
+// Request interceptor to attach Supabase JWT and User ID header
 apiClient.interceptors.request.use(
   async (config) => {
     try {
+      // 1. Check Supabase auth session
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      // 2. Attach User ID & Email from local session for consistency
+      const savedUser = localStorage.getItem('demo_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.id) {
+          config.headers['X-User-Id'] = parsed.id;
+        }
+        if (parsed.email) {
+          config.headers['X-User-Email'] = parsed.email;
+        }
+        if (!token) {
+          config.headers.Authorization = `Bearer demo-token-12345`;
+        }
+      }
     } catch (err) {
-      console.warn('Could not attach auth token to request:', err);
+      console.warn('Auth interceptor note:', err);
     }
     return config;
   },
@@ -33,7 +49,6 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Handle unauthorized if necessary (e.g. redirect to login)
       console.warn('Unauthorized API access (401)');
     }
     return Promise.reject(error);

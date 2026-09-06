@@ -46,7 +46,7 @@ export const Signup = () => {
           </div>
         </div>
         <h2 className="mt-4 text-center text-2xl sm:text-3xl font-extrabold text-brand-950 tracking-tight">
-          Create Patient Profile
+          ClariMed Registration
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500 font-medium">
           Connect your health journey with Ayushman Bharat Digital Mission (ABDM)

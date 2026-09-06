@@ -47,8 +47,8 @@ export const Sidebar = ({ isMobileOpen, closeMobile }) => {
               <HeartPulse className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-bold text-brand-950 text-sm tracking-tight leading-tight">
-                Health Record
+              <h1 className="font-extrabold text-brand-950 text-base tracking-tight leading-tight">
+                ClariMed
               </h1>
               <p className="text-[11px] font-semibold text-brand-600 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> Creative Tinkers
@@ -56,7 +56,7 @@ export const Sidebar = ({ isMobileOpen, closeMobile }) => {
             </div>
           </div>
 
-          {/* ABHA Badge Card with Mint & Sand gradient */}
+          {/* ABHA Badge Card */}
           <div className="mx-4 my-4 p-3 bg-gradient-to-br from-brand-100/60 via-brand-50 to-sand-100/60 border border-brand-200/70 rounded-2xl shadow-2xs">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-brand-800">

@@ -35,10 +35,10 @@ export const Login = () => {
           </div>
         </div>
         <h2 className="mt-4 text-center text-2xl sm:text-3xl font-extrabold text-brand-950 tracking-tight">
-          Fragmented Health Record
+          ClariMed
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500 font-medium">
-          Unified Health Vault & AI Timeline for ABDM Ecosystem
+          Unified AI Health Record Ecosystem for ABDM
         </p>
       </div>
 

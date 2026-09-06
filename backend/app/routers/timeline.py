@@ -285,11 +285,6 @@ def get_health_timeline(
     target_user_id = user_id or auth_user_id
     _get_or_create_user(db, target_user_id)
 
-    # Check if user has any records; if none, seed demo data for instant evaluation
-    existing_count = db.query(ExtractedRecord).filter(ExtractedRecord.user_id == target_user_id).count()
-    if existing_count == 0:
-        _seed_demo_timeline(db, target_user_id)
-
     # Base query sorted chronologically descending
     query = (
         db.query(ExtractedRecord)

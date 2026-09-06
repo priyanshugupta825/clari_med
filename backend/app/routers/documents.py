@@ -1,7 +1,7 @@
 import uuid
 import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -51,17 +51,26 @@ def _get_or_create_user(db: Session, user_id: str, email: Optional[str] = None) 
 
 
 def get_user_id_from_request(
+    request: Request,
     credentials=Depends(security_bearer),
 ) -> str:
     """
-    Extracts user ID from bearer token or returns a default dev/demo user UUID.
+    Extracts user ID from X-User-Id header, Supabase bearer token, or returns default.
     """
+    # 1. Custom client header for session consistency
+    x_user = request.headers.get("x-user-id")
+    if x_user and len(x_user) > 2:
+        return x_user
+
+    # 2. Bearer token
     if credentials and credentials.credentials:
         try:
             payload = decode_supabase_token(credentials.credentials)
-            return payload.get("sub", "demo-user-123")
+            if payload.get("sub"):
+                return payload.get("sub")
         except Exception:
-            return "demo-user-123"
+            pass
+
     return "demo-user-123"
 
 

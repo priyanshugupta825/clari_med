@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   UploadCloud,
   FileText,
@@ -15,10 +16,16 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  Eye,
+  Trash2,
+  ExternalLink,
+  FolderOpen,
 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import apiClient from '../api/client';
 
 export const Upload = () => {
+  const navigate = useNavigate();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [docTypeHint, setDocTypeHint] = useState('prescription');
@@ -30,6 +37,28 @@ export const Upload = () => {
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+
+  // Vault Gallery state
+  const [vaultDocuments, setVaultDocuments] = useState([]);
+  const [loadingVault, setLoadingVault] = useState(true);
+
+  const fetchVaultDocuments = async () => {
+    setLoadingVault(true);
+    try {
+      const res = await apiClient.get('/documents/');
+      if (Array.isArray(res.data)) {
+        setVaultDocuments(res.data);
+      }
+    } catch (err) {
+      console.warn('Vault fetch note:', err);
+    } finally {
+      setLoadingVault(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVaultDocuments();
+  }, []);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -77,6 +106,7 @@ export const Upload = () => {
       if (response.data?.success) {
         setUploadedDoc(response.data.document);
         setExtractionResult(response.data.extraction);
+        fetchVaultDocuments(); // refresh list
       } else {
         throw new Error(response.data?.message || 'Failed to extract medical data.');
       }
@@ -92,24 +122,33 @@ export const Upload = () => {
     }
   };
 
-  const handleConfirmExtraction = async () => {
-    if (!uploadedDoc) return;
-    setIsConfirming(true);
+  const handleConfirmAndNavigate = async (targetPath = '/timeline') => {
+    if (uploadedDoc) {
+      setIsConfirming(true);
+      try {
+        await apiClient.post(`/documents/${uploadedDoc.id}/confirm`, {
+          title: uploadedDoc.title || selectedFile?.name,
+          document_type: extractionResult?.encounter?.record_type || docTypeHint,
+          encounter: extractionResult?.encounter,
+          medicines: extractionResult?.medicines,
+          lab_results: extractionResult?.lab_results,
+        });
+      } catch (err) {
+        console.warn('Confirm note:', err);
+      } finally {
+        setIsConfirming(false);
+      }
+    }
+    navigate(targetPath);
+  };
 
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
-      await apiClient.post(`/documents/${uploadedDoc.id}/confirm`, {
-        title: uploadedDoc.title || selectedFile?.name,
-        document_type: extractionResult?.encounter?.record_type || docTypeHint,
-        encounter: extractionResult?.encounter,
-        medicines: extractionResult?.medicines,
-        lab_results: extractionResult?.lab_results,
-      });
-      setIsConfirmed(true);
+      await apiClient.delete(`/documents/${docId}`);
+      fetchVaultDocuments();
     } catch (err) {
-      console.error('Confirmation error:', err);
-      setIsConfirmed(true);
-    } finally {
-      setIsConfirming(false);
+      console.error('Delete error:', err);
     }
   };
 
@@ -122,14 +161,15 @@ export const Upload = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-8">
+      {/* Page Header */}
       <div>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold mb-2 border border-brand-200/80">
           <Sparkles className="w-3.5 h-3.5 text-brand-600" /> Multimodal Gemini AI Parser
         </div>
-        <h1 className="text-2xl font-bold text-brand-950">Health Vault — Document Intelligence</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Upload prescriptions, lab results, discharge summaries, or vaccine certificates. Gemini AI auto-extracts structured clinical data with Indian prescription shorthand support.
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-950">Health Vault — Medical Document Intelligence</h1>
+        <p className="text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+          Upload any prescription, diagnostic lab report, discharge summary, or OPD slip. Gemini AI auto-extracts structured clinical entities, medicines, and biomarkers directly into your health record.
         </p>
       </div>
 
@@ -141,8 +181,8 @@ export const Upload = () => {
       )}
 
       {/* State 1: Upload Form */}
-      {!extractionResult && !isConfirmed && (
-        <div className="bg-white rounded-3xl border border-brand-100 p-6 sm:p-8 shadow-2xs">
+      {!extractionResult && (
+        <div className="bg-white rounded-3xl border border-brand-100 p-6 sm:p-8 shadow-2xs space-y-6">
           <form onSubmit={handleUploadSubmit} className="space-y-6">
             {/* Document Type Selector */}
             <div>
@@ -218,7 +258,7 @@ export const Upload = () => {
             <button
               type="submit"
               disabled={!selectedFile || isProcessing}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm transition shadow-sm disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm transition shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {isProcessing ? (
                 <>
@@ -237,19 +277,19 @@ export const Upload = () => {
       )}
 
       {/* State 2: Patient Review & Confirmation Screen */}
-      {extractionResult && !isConfirmed && (
+      {extractionResult && (
         <div className="space-y-6">
           <div className="bg-white rounded-3xl border border-brand-100 p-6 sm:p-8 shadow-2xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-brand-100 pb-4">
               <div>
                 <span className="text-[10px] font-bold text-brand-800 uppercase tracking-wider bg-brand-100 px-2.5 py-0.5 rounded-lg border border-brand-200">
-                  AI Extraction Review
+                  AI Extraction Success
                 </span>
                 <h2 className="text-xl font-bold text-brand-950 mt-1.5">
-                  Inspect Extracted Medical Data
+                  Extracted Medical Entities & Clinical Insights
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Review the extracted medicines, lab values, and clinical notes before saving to your permanent timeline.
+                  Document has been uploaded and structured. Choose where you want to view it:
                 </p>
               </div>
 
@@ -262,7 +302,7 @@ export const Upload = () => {
             {extractionResult.encounter.summary && (
               <div className="p-4 rounded-2xl bg-brand-50 border border-brand-200 text-xs text-brand-950 leading-relaxed">
                 <span className="font-bold block mb-1 flex items-center gap-1.5 text-brand-800">
-                  <Sparkles className="w-4 h-4 text-brand-600" /> AI Document Summary
+                  <Sparkles className="w-4 h-4 text-brand-600" /> AI Clinical Summary
                 </span>
                 {extractionResult.encounter.summary}
               </div>
@@ -273,15 +313,15 @@ export const Upload = () => {
               <div className="p-3.5 rounded-2xl bg-brand-50/50 border border-brand-100">
                 <span className="text-brand-600 font-bold block uppercase text-[10px]">Doctor / Specialist</span>
                 <p className="font-bold text-brand-950 mt-0.5">
-                  {extractionResult.encounter.doctor_name || 'Not specified'}
+                  {extractionResult.encounter.doctor_name || 'Medical Specialist'}
                 </p>
-                <p className="text-slate-500">{extractionResult.encounter.doctor_specialty}</p>
+                <p className="text-slate-500">{extractionResult.encounter.doctor_specialty || 'General Practitioner'}</p>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-brand-50/50 border border-brand-100">
                 <span className="text-brand-600 font-bold block uppercase text-[10px]">Facility / Clinic</span>
                 <p className="font-bold text-brand-950 mt-0.5">
-                  {extractionResult.encounter.facility_name || 'Not specified'}
+                  {extractionResult.encounter.facility_name || 'Healthcare Facility'}
                 </p>
                 <p className="text-slate-500">{extractionResult.encounter.record_type}</p>
               </div>
@@ -289,9 +329,9 @@ export const Upload = () => {
               <div className="p-3.5 rounded-2xl bg-brand-50/50 border border-brand-100">
                 <span className="text-brand-600 font-bold block uppercase text-[10px]">Encounter Date</span>
                 <p className="font-bold text-brand-950 mt-0.5">
-                  {extractionResult.encounter.record_date || 'Today'}
+                  {extractionResult.encounter.record_date || 'Recent'}
                 </p>
-                <p className="text-slate-500">{extractionResult.encounter.recommended_follow_up || 'No follow-up noted'}</p>
+                <p className="text-slate-500">{extractionResult.encounter.recommended_follow_up || 'Follow-up as advised'}</p>
               </div>
             </div>
 
@@ -366,63 +406,144 @@ export const Upload = () => {
               </div>
             )}
 
-            {/* Guardrail Disclaimer */}
-            <div className="p-3.5 rounded-2xl bg-sand-100 border border-sand-300 text-sand-800 text-xs">
-              <strong>Medical Disclaimer:</strong> {extractionResult.raw_ai_disclaimer}
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            {/* Navigation / Next Actions */}
+            <div className="pt-4 border-t border-brand-100 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
-                onClick={handleConfirmExtraction}
-                disabled={isConfirming}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm transition shadow-sm disabled:opacity-50"
+                onClick={() => handleConfirmAndNavigate('/timeline')}
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm shadow-sm transition cursor-pointer"
               >
-                {isConfirming ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Saving to Health Timeline...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Confirm & Save to Health Timeline</span>
-                  </>
-                )}
+                <Activity className="w-4 h-4" />
+                <span>View in Health Timeline →</span>
               </button>
+              
+              {extractionResult.medicines?.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleConfirmAndNavigate('/medicines')}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-brand-700 hover:bg-brand-800 text-white font-bold text-xs sm:text-sm shadow-sm transition cursor-pointer"
+                >
+                  <Pill className="w-4 h-4" />
+                  <span>View in Medicine Manager →</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={resetUpload}
-                className="px-4 py-3 rounded-2xl border border-brand-200 text-brand-800 text-sm font-semibold hover:bg-brand-50"
+                className="px-4 py-3 rounded-2xl border border-brand-200 text-brand-800 text-xs sm:text-sm font-semibold hover:bg-brand-50"
               >
-                Discard / Re-upload
+                Upload Another Document
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* State 3: Confirmed Success Screen */}
-      {isConfirmed && (
-        <div className="bg-white rounded-3xl border border-brand-100 p-8 shadow-2xs text-center space-y-4">
-          <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 mx-auto border border-brand-200">
-            <CheckCircle2 className="w-8 h-8" />
+      {/* Section 3: Vault Documents Gallery */}
+      <div className="bg-white rounded-3xl border border-brand-100 p-6 sm:p-8 shadow-2xs space-y-5">
+        <div className="flex items-center justify-between border-b border-brand-100 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-brand-950 flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-brand-600" />
+              <span>Stored Vault Documents</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              All files stored securely and linked with ABDM digital health records
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-slate-900">Document Successfully Added to Health Vault</h2>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Your medical record has been stored securely and integrated into your Health Timeline and Medicine Manager.
-          </p>
-          <div className="pt-2 flex justify-center gap-3">
-            <button
-              onClick={resetUpload}
-              className="px-5 py-2.5 rounded-2xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition"
-            >
-              Upload Another Document
-            </button>
-          </div>
+          <span className="text-xs font-mono font-bold px-3 py-1 bg-brand-100 text-brand-800 rounded-xl border border-brand-200">
+            {vaultDocuments.length} Documents Stored
+          </span>
         </div>
-      )}
+
+        {loadingVault && (
+          <div className="text-center py-8 space-y-2">
+            <RefreshCw className="w-6 h-6 text-brand-600 animate-spin mx-auto" />
+            <p className="text-xs text-slate-500">Loading documents from Health Vault...</p>
+          </div>
+        )}
+
+        {!loadingVault && vaultDocuments.length === 0 && (
+          <div className="text-center py-10 px-4 bg-brand-50/30 rounded-2xl border border-brand-100 space-y-2">
+            <FileText className="w-8 h-8 text-brand-400 mx-auto" />
+            <p className="text-xs font-semibold text-slate-700">No documents in your vault yet</p>
+            <p className="text-[11px] text-slate-400">
+              Upload your first prescription or report above to store and analyze it.
+            </p>
+          </div>
+        )}
+
+        {!loadingVault && vaultDocuments.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {vaultDocuments.map((doc) => {
+              const formattedDate = doc.uploaded_at
+                ? format(parseISO(doc.uploaded_at), 'dd MMM yyyy, HH:mm')
+                : 'Recent';
+
+              return (
+                <div
+                  key={doc.id}
+                  className="p-4 rounded-2xl bg-brand-50/50 border border-brand-200/70 hover:border-brand-300 transition flex flex-col justify-between space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-white border border-brand-200 text-brand-700 shadow-2xs mt-0.5">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900 truncate max-w-[200px]">
+                          {doc.title || doc.file_name}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                          {formattedDate} • {(doc.file_size_bytes / 1024).toFixed(0)} KB
+                        </p>
+                        <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-brand-100 text-brand-800 border border-brand-200 mt-1.5">
+                          {doc.document_type}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDocument(doc.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                      title="Delete document"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {doc.ai_summary && (
+                    <p className="text-xs text-slate-600 bg-white/70 p-2.5 rounded-xl border border-brand-100 line-clamp-2">
+                      {doc.ai_summary}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1 border-t border-brand-100/60 text-xs">
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-bold text-brand-700 hover:text-brand-900"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>View File</span>
+                    </a>
+                    <button
+                      onClick={() => navigate('/timeline')}
+                      className="font-bold text-brand-800 hover:text-brand-950 flex items-center gap-1"
+                    >
+                      <span>Timeline</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
