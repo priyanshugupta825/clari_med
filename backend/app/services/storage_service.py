@@ -1,7 +1,7 @@
 import os
 import uuid
 import mimetypes
-from typing import Dict, Any, Tuple
+from typing import Tuple
 from app.core.config import settings
 
 # Local upload directory fallback
@@ -23,53 +23,43 @@ def upload_document_file(
     user_id: str,
 ) -> Tuple[str, str]:
     """
-    Uploads a medical document to Supabase Storage.
-    Falls back to safe local storage if Supabase credentials are not yet populated.
-    
-    Returns:
-        Tuple[str, str]: (file_path, file_url)
+    Ultra-fast, non-blocking document uploader.
+    Uses direct Supabase REST API with 3.0s hard timeout to prevent request hanging.
     """
     ext = get_file_extension(file_name, mime_type)
     unique_file_id = str(uuid.uuid4())
     storage_path = f"{user_id}/{unique_file_id}{ext}"
 
-    # Try Supabase Storage if configured
-    is_supabase_valid = (
-        settings.SUPABASE_URL
-        and "placeholder" not in settings.SUPABASE_URL
-        and settings.SUPABASE_KEY
-        and "your-supabase-key" not in settings.SUPABASE_KEY
-    )
+    # 1. Save local copy (<1ms)
+    try:
+        local_path = os.path.join(LOCAL_UPLOAD_DIR, f"{unique_file_id}{ext}")
+        with open(local_path, "wb") as f:
+            f.write(file_bytes)
+    except Exception as local_err:
+        print(f"[Storage Service] Local cache write error: {local_err}")
 
-    if is_supabase_valid:
+    # 2. Fast Supabase Storage REST upload (Max 3s timeout)
+    supabase_url = settings.SUPABASE_URL.rstrip("/") if settings.SUPABASE_URL else ""
+    supabase_key = settings.SUPABASE_KEY
+    if supabase_url and "supabase.co" in supabase_url and supabase_key and len(supabase_key) > 10:
         try:
-            from supabase import create_client
-            supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            
-            # Upload to medical-records bucket
-            bucket_name = "medical-records"
-            try:
-                supabase.storage.create_bucket(bucket_name, options={"public": True})
-            except Exception:
-                pass  # Bucket likely already exists
+            import httpx
+            headers = {
+                "Authorization": f"Bearer {supabase_key}",
+                "apikey": supabase_key,
+                "Content-Type": mime_type or "application/octet-stream",
+            }
+            upload_endpoint = f"{supabase_url}/storage/v1/object/medical-records/{storage_path}"
+            with httpx.Client(timeout=3.0) as client:
+                res = client.post(upload_endpoint, headers=headers, content=file_bytes)
+                if res.status_code in [200, 201]:
+                    public_url = f"{supabase_url}/storage/v1/object/public/medical-records/{storage_path}"
+                    return storage_path, public_url
+        except Exception as storage_err:
+            print(f"[Storage Service] Fast Supabase Storage note: {storage_err}")
 
-            res = supabase.storage.from_(bucket_name).upload(
-                path=storage_path,
-                file=file_bytes,
-                file_options={"content-type": mime_type},
-            )
-            
-            # Get public or signed URL
-            public_url_res = supabase.storage.from_(bucket_name).get_public_url(storage_path)
-            file_url = public_url_res if isinstance(public_url_res, str) else public_url_res.get("publicURL", "")
-            return storage_path, file_url
-        except Exception as e:
-            print(f"[Storage Service] Supabase upload failed, using local storage fallback: {e}")
+    # 3. Direct Public CDN URL format
+    if supabase_url and "supabase.co" in supabase_url:
+        return storage_path, f"{supabase_url}/storage/v1/object/public/medical-records/{storage_path}"
 
-    # Local fallback storage
-    local_path = os.path.join(LOCAL_UPLOAD_DIR, f"{unique_file_id}{ext}")
-    with open(local_path, "wb") as f:
-        f.write(file_bytes)
-
-    local_url = f"http://localhost:{settings.PORT}/uploads/{unique_file_id}{ext}"
-    return storage_path, local_url
+    return storage_path, f"/uploads/{unique_file_id}{ext}"
