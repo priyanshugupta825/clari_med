@@ -16,6 +16,8 @@ import {
   Plus,
   Hospital,
   FolderOpen,
+  ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -26,53 +28,63 @@ export const Dashboard = () => {
   const [records, setRecords] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [docCount, setDocCount] = useState(0);
+  const [activeSharesCount, setActiveSharesCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const displayName = user?.user_metadata?.full_name || 'Patient';
   const abhaId = user?.user_metadata?.abha_id || '91-4521-8890-4123';
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      try {
-        // Fetch timeline records
-        const timelineRes = await apiClient.get('/timeline');
-        if (timelineRes.data?.records) {
-          const recs = timelineRes.data.records;
-          setRecords(recs);
-          
-          // Extract active medicines
-          const allMeds = [];
-          recs.forEach((r) => {
-            if (r.medicines && Array.isArray(r.medicines)) {
-              r.medicines.forEach((m) => {
-                if (!allMeds.some((existing) => existing.name === m.name)) {
-                  allMeds.push(m);
-                }
-              });
-            }
-          });
-          setMedicines(allMeds);
-        }
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch timeline records
+      const timelineRes = await apiClient.get('/timeline');
+      if (timelineRes.data?.records) {
+        const recs = timelineRes.data.records;
+        setRecords(recs);
 
-        // Fetch document count
-        const docsRes = await apiClient.get('/documents/');
-        if (docsRes.data?.documents) {
-          setDocCount(docsRes.data.documents.length);
-        }
-      } catch (err) {
-        console.warn('Dashboard data fetch note:', err);
-      } finally {
-        setLoading(false);
+        // Extract distinct medicines
+        const allMeds = [];
+        recs.forEach((r) => {
+          if (r.medicines && Array.isArray(r.medicines)) {
+            r.medicines.forEach((m) => {
+              if (!allMeds.some((existing) => existing.name === m.name)) {
+                allMeds.push(m);
+              }
+            });
+          }
+        });
+        setMedicines(allMeds);
       }
-    };
 
+      // 2. Fetch documents count
+      const docsRes = await apiClient.get('/documents/');
+      if (Array.isArray(docsRes.data)) {
+        setDocCount(docsRes.data.length);
+      } else if (docsRes.data?.documents) {
+        setDocCount(docsRes.data.documents.length);
+      }
+
+      // 3. Fetch doctor shares count
+      const sharesRes = await apiClient.get('/consent/shares');
+      if (sharesRes.data?.shares) {
+        const active = sharesRes.data.shares.filter((s) => s.is_active).length;
+        setActiveSharesCount(active);
+      }
+    } catch (err) {
+      console.warn('Dashboard data fetch note:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner - Ocean Breathe Theme */}
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header Banner */}
       <div className="bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-brand-900/10 flex flex-col md:flex-row md:items-center justify-between gap-6 border border-brand-500/30">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold backdrop-blur-xs mb-3 border border-white/20">
@@ -94,14 +106,14 @@ export const Dashboard = () => {
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={() => navigate('/upload')}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-brand-800 font-bold text-sm hover:bg-brand-50 transition shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-brand-800 font-bold text-sm hover:bg-brand-50 transition shadow-sm cursor-pointer"
           >
             <UploadCloud className="w-4 h-4 text-brand-600" />
             <span>Upload Document</span>
           </button>
           <button
             onClick={() => navigate('/emergency')}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emergency-600 text-white font-bold text-sm hover:bg-emergency-700 transition shadow-sm"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emergency-600 text-white font-bold text-sm hover:bg-emergency-700 transition shadow-sm cursor-pointer"
           >
             <ShieldAlert className="w-4 h-4" />
             <span>Emergency QR</span>
@@ -109,56 +121,78 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Metrics Row */}
+      {/* Metrics Row - Interactive Clickable Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white p-5 rounded-2xl border border-brand-100 shadow-2xs">
+        {/* 1. Vault Files Card */}
+        <div
+          onClick={() => navigate('/upload')}
+          className="bg-white p-5 rounded-3xl border border-brand-100 shadow-2xs hover:border-brand-400 hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vault Files</span>
-            <div className="p-2 rounded-xl bg-brand-100 text-brand-700">
+            <div className="p-2 rounded-2xl bg-brand-100 text-brand-700 group-hover:scale-110 transition-transform">
               <FileText className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">{docCount}</p>
-          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <span className="text-brand-700 font-bold">{docCount > 0 ? '100%' : '0'}</span> AI Extracted
+          <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">{docCount}</p>
+          <p className="text-xs text-brand-700 font-semibold mt-1 flex items-center gap-1">
+            <span>{docCount > 0 ? 'Stored in Vault' : 'Tap to upload'}</span>
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
           </p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-brand-100 shadow-2xs">
+        {/* 2. Active Meds Card */}
+        <div
+          onClick={() => navigate('/medicines')}
+          className="bg-white p-5 rounded-3xl border border-brand-100 shadow-2xs hover:border-brand-400 hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Meds</span>
-            <div className="p-2 rounded-xl bg-brand-100 text-brand-700">
+            <div className="p-2 rounded-2xl bg-brand-100 text-brand-700 group-hover:scale-110 transition-transform">
               <Pill className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">{medicines.length}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            {medicines.length > 0 ? 'Dosages active' : 'No active prescriptions'}
+          <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">{medicines.length}</p>
+          <p className="text-xs text-brand-700 font-semibold mt-1 flex items-center gap-1">
+            <span>{medicines.length > 0 ? 'Prescriptions tracked' : 'Manage dosages'}</span>
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
           </p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-brand-100 shadow-2xs">
+        {/* 3. Encounters Card */}
+        <div
+          onClick={() => navigate('/timeline')}
+          className="bg-white p-5 rounded-3xl border border-brand-100 shadow-2xs hover:border-brand-400 hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Encounters</span>
-            <div className="p-2 rounded-xl bg-sand-100 text-sand-700">
+            <div className="p-2 rounded-2xl bg-sand-100 text-sand-700 group-hover:scale-110 transition-transform">
               <Activity className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">{records.length}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            {records.length > 0 ? 'Extracted records' : 'No records yet'}
+          <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">{records.length}</p>
+          <p className="text-xs text-sand-800 font-semibold mt-1 flex items-center gap-1">
+            <span>{records.length > 0 ? 'Timeline visits' : 'View timeline'}</span>
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
           </p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-brand-100 shadow-2xs">
+        {/* 4. Doctor Shares Card */}
+        <div
+          onClick={() => navigate('/doctor-portal')}
+          className="bg-white p-5 rounded-3xl border border-brand-100 shadow-2xs hover:border-brand-400 hover:shadow-md transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Doctor Shares</span>
-            <div className="p-2 rounded-xl bg-brand-200/80 text-brand-800">
+            <div className="p-2 rounded-2xl bg-brand-200/80 text-brand-800 group-hover:scale-110 transition-transform">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 mt-2">Ready</p>
-          <p className="text-xs text-brand-700 font-medium mt-1">Consent-based sharing</p>
+          <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">{activeSharesCount}</p>
+          <p className="text-xs text-brand-800 font-semibold mt-1 flex items-center gap-1">
+            <span>{activeSharesCount > 0 ? 'Active grants' : 'Grant doctor access'}</span>
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+          </p>
         </div>
       </div>
 
@@ -174,14 +208,19 @@ export const Dashboard = () => {
             {records.length > 0 && (
               <button
                 onClick={() => navigate('/timeline')}
-                className="text-xs font-bold text-brand-700 hover:text-brand-800 flex items-center gap-1 bg-brand-50 px-2.5 py-1 rounded-lg border border-brand-100"
+                className="text-xs font-bold text-brand-700 hover:text-brand-800 flex items-center gap-1 bg-brand-50 px-2.5 py-1 rounded-lg border border-brand-100 cursor-pointer"
               >
                 Full Timeline <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {records.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-10 space-y-2">
+              <RefreshCw className="w-6 h-6 text-brand-600 animate-spin mx-auto" />
+              <p className="text-xs text-slate-500">Loading recent records...</p>
+            </div>
+          ) : records.length === 0 ? (
             <div className="text-center py-10 px-4 bg-brand-50/40 rounded-2xl border border-brand-100 space-y-3">
               <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center mx-auto">
                 <FolderOpen className="w-6 h-6" />
@@ -192,7 +231,7 @@ export const Dashboard = () => {
               </p>
               <button
                 onClick={() => navigate('/upload')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-2xs transition"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-2xs transition cursor-pointer"
               >
                 <UploadCloud className="w-3.5 h-3.5" />
                 <span>Upload Medical Record</span>
@@ -200,15 +239,16 @@ export const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {records.slice(0, 3).map((record) => {
+              {records.slice(0, 4).map((record) => {
                 const formattedDate = record.record_date
-                  ? format(parseISO(record.record_date), 'dd MMM')
+                  ? format(parseISO(record.record_date), 'dd MMM yyyy')
                   : 'Recent';
 
                 return (
                   <div
                     key={record.id}
-                    className="p-4 rounded-2xl bg-brand-50/60 border border-brand-200/60 hover:border-brand-300 transition"
+                    onClick={() => navigate('/timeline')}
+                    className="p-4 rounded-2xl bg-brand-50/60 border border-brand-200/60 hover:border-brand-400 hover:bg-brand-50 transition cursor-pointer"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3">
@@ -217,7 +257,7 @@ export const Dashboard = () => {
                         </div>
                         <div>
                           <h3 className="font-bold text-sm text-slate-900">
-                            {record.doctor_name || record.record_type || 'Medical Record'}
+                            {record.doctor_name || record.record_type || 'Clinical Record'}
                           </h3>
                           <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
                             <Hospital className="w-3 h-3 text-brand-500" />
@@ -225,6 +265,9 @@ export const Dashboard = () => {
                             {record.doctor_specialty && <span>• {record.doctor_specialty}</span>}
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-brand-100 text-brand-900 font-bold uppercase border border-brand-200">
+                              {record.record_type?.replace('_', ' ')}
+                            </span>
                             {record.diagnoses?.map((d, i) => (
                               <span
                                 key={i}
@@ -241,12 +284,7 @@ export const Dashboard = () => {
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => navigate('/timeline')}
-                        className="text-slate-400 hover:text-slate-600"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 mt-1" />
                     </div>
                   </div>
                 );
@@ -265,13 +303,19 @@ export const Dashboard = () => {
               </div>
               <button
                 onClick={() => navigate('/medicines')}
-                className="p-1.5 rounded-xl bg-brand-100 text-brand-700 hover:bg-brand-200 transition"
+                className="p-1.5 rounded-xl bg-brand-100 text-brand-700 hover:bg-brand-200 transition cursor-pointer"
+                title="View Medicine Manager"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
 
-            {medicines.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8 space-y-2">
+                <RefreshCw className="w-5 h-5 text-brand-600 animate-spin mx-auto" />
+                <p className="text-xs text-slate-500">Loading medicines...</p>
+              </div>
+            ) : medicines.length === 0 ? (
               <div className="text-center py-8 px-3 bg-brand-50/30 rounded-2xl border border-brand-100 space-y-2">
                 <Pill className="w-8 h-8 text-brand-400 mx-auto" />
                 <p className="text-xs font-semibold text-slate-700">No active medications</p>
@@ -281,10 +325,11 @@ export const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {medicines.slice(0, 3).map((med, idx) => (
+                {medicines.slice(0, 4).map((med, idx) => (
                   <div
                     key={idx}
-                    className="p-3.5 rounded-2xl bg-brand-50/70 border border-brand-200/60 flex items-center justify-between"
+                    onClick={() => navigate('/medicines')}
+                    className="p-3.5 rounded-2xl bg-brand-50/70 border border-brand-200/60 hover:border-brand-400 transition cursor-pointer flex items-center justify-between"
                   >
                     <div>
                       <h4 className="font-bold text-sm text-slate-900">{med.name}</h4>
@@ -292,7 +337,7 @@ export const Dashboard = () => {
                         {med.dosage} • {med.frequency}
                       </p>
                     </div>
-                    <span className="text-[11px] font-bold text-brand-800 bg-brand-100 px-2.5 py-1 rounded-xl border border-brand-200">
+                    <span className="text-[10px] font-bold text-brand-800 bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200">
                       Active
                     </span>
                   </div>
@@ -303,9 +348,9 @@ export const Dashboard = () => {
 
           <button
             onClick={() => navigate('/medicines')}
-            className="w-full mt-5 py-2.5 px-3 rounded-xl border border-brand-200 text-xs font-bold text-brand-800 bg-brand-50 hover:bg-brand-100 transition text-center"
+            className="w-full mt-5 py-2.5 px-3 rounded-xl border border-brand-200 text-xs font-bold text-brand-800 bg-brand-50 hover:bg-brand-100 transition text-center cursor-pointer"
           >
-            Manage All Dosages & History
+            Manage All Dosages & History →
           </button>
         </div>
       </div>
