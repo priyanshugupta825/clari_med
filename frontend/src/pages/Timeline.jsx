@@ -245,8 +245,10 @@ export const Timeline = () => {
               {/* Vertical Line Container */}
               <div className="relative border-l-2 border-brand-200 ml-4 sm:ml-6 pl-6 sm:pl-8 space-y-6">
                 {items.map((record) => {
+                  const normalizedType =
+                    (record.record_type || 'consultation').toLowerCase().replace(/[\s-]/g, '_');
                   const typeConfig =
-                    TYPE_CONFIG[record.record_type] || TYPE_CONFIG.consultation;
+                    TYPE_CONFIG[normalizedType] || TYPE_CONFIG.consultation;
                   const Icon = typeConfig.icon;
                   const isExpanded = !!expandedMap[record.id];
 

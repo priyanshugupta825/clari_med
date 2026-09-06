@@ -145,10 +145,11 @@ async def upload_and_extract_document(
             file_bytes=file_bytes,
             mime_type=mime_type,
             file_name=file.filename,
+            document_type_hint=document_type_hint,
         )
     except Exception as e:
         print(f"[Document Upload] AI Extraction encountered error: {e}")
-        extraction_result = extract_medical_data(b"", mime_type, file.filename)
+        extraction_result = extract_medical_data(b"", mime_type, file.filename, document_type_hint)
 
     # 6. Save Extracted Clinical Encounter
     encounter_data = extraction_result.encounter
@@ -159,12 +160,25 @@ async def upload_and_extract_document(
         except Exception:
             parsed_date = datetime.date.today()
 
+    # Normalize record_type strictly
+    raw_type = (encounter_data.record_type or document_type_hint or "prescription").lower().replace(" ", "_")
+    if "discharge" in raw_type or "summary" in raw_type:
+        normalized_record_type = "discharge_summary"
+    elif "consult" in raw_type or "opd" in raw_type or "clinic" in raw_type:
+        normalized_record_type = "consultation"
+    elif "lab" in raw_type or "report" in raw_type or "test" in raw_type or "blood" in raw_type:
+        normalized_record_type = "lab_report"
+    elif "vaccin" in raw_type or "immun" in raw_type:
+        normalized_record_type = "vaccine_certificate"
+    else:
+        normalized_record_type = "prescription"
+
     extracted_rec_id = str(uuid.uuid4())
     extracted_record = ExtractedRecord(
         id=extracted_rec_id,
         document_id=doc_id,
         user_id=user_id,
-        record_type=encounter_data.record_type or document_type_hint or "prescription",
+        record_type=normalized_record_type,
         record_date=parsed_date or datetime.date.today(),
         doctor_name=encounter_data.doctor_name,
         doctor_specialty=encounter_data.doctor_specialty,
