@@ -23,6 +23,7 @@ import {
 import axios from 'axios';
 import { format, parseISO } from 'date-fns';
 import { getDocumentViewUrl } from '../lib/documentUrl';
+import { CDSAlertBanner } from '../components/cds/CDSAlertBanner';
 
 const apiBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -178,6 +179,14 @@ export const DoctorView = () => {
             <span className="font-mono text-brand-300">ABDM Synced</span>
           </div>
         </div>
+
+        {/* Multicenter Clinical Decision Support (CDS) Early Warning Banner */}
+        {data.cds_insights && (
+          <CDSAlertBanner
+            cdsInsights={data.cds_insights}
+            patientName={patient.full_name || 'Patient'}
+          />
+        )}
 
         {/* Patient Identity Demographics */}
         <div className="bg-white rounded-3xl p-5 shadow-2xs border border-brand-100 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 text-xs">

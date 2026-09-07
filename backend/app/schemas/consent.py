@@ -1,7 +1,12 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from pydantic import BaseModel, Field
-from app.schemas.timeline import TimelineItemResponse, TimelineMedicineItem, TimelineLabItem
+from app.schemas.timeline import (
+    TimelineItemResponse,
+    TimelineMedicineItem,
+    TimelineLabItem,
+    CDSInsightsResponse,
+)
 from app.schemas.emergency import EmergencyContactItem
 
 
@@ -69,6 +74,7 @@ class DoctorAccessResponse(BaseModel):
     all_medicines: List[TimelineMedicineItem]
     lab_results: List[TimelineLabItem]
     timeline: List[TimelineItemResponse]
+    cds_insights: Optional[CDSInsightsResponse] = None
     consent_meta: Dict[str, Any]
     disclaimer: str = (
         "AI pre-consult brief is assistive and non-diagnostic. Always perform direct clinical examination."

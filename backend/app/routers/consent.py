@@ -31,6 +31,7 @@ from app.schemas.timeline import (
 )
 from app.schemas.emergency import EmergencyContactItem
 from app.services.summary_service import generate_doctor_preconsult_summary
+from app.services.cds_service import evaluate_cross_center_cds
 
 router = APIRouter(prefix="/consent", tags=["Doctor Dashboard & Consent Sharing"])
 
@@ -233,6 +234,14 @@ def get_doctor_consultation_dossier(
             )
         )
 
+    cds_insights = evaluate_cross_center_cds(
+        patient_id=share.user_id,
+        patient_name=user.full_name if user else "Patient",
+        records=records_db,
+        medicines=all_meds_db,
+        labs=labs_db,
+    )
+
     return DoctorAccessResponse(
         success=True,
         patient=patient_profile,
@@ -241,6 +250,7 @@ def get_doctor_consultation_dossier(
         all_medicines=all_meds,
         lab_results=labs,
         timeline=timeline_items,
+        cds_insights=cds_insights,
         consent_meta={
             "recipient_name": share.recipient_name,
             "purpose": share.purpose,

@@ -97,23 +97,28 @@ def generate_doctor_preconsult_summary(
         import google.generativeai as genai
         genai.configure(api_key=api_key)
 
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=SUMMARY_SYSTEM_PROMPT,
-        )
-
+        # Candidate models to try in sequence
+        candidate_models = ["gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-1.5-flash-latest", "gemini-pro"]
         user_content = f"Here is the patient's medical dossier:\n{json.dumps(patient_payload, indent=2)}\n\nGenerate the structured 60-second pre-consult brief for the consulting doctor."
+        
+        for candidate in candidate_models:
+            try:
+                model = genai.GenerativeModel(
+                    model_name=candidate,
+                    system_instruction=SUMMARY_SYSTEM_PROMPT,
+                )
+                response = model.generate_content(
+                    user_content,
+                    generation_config={"temperature": 0.2}
+                )
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as inner_e:
+                print(f"[Summary Service] Candidate model {candidate} failed: {inner_e}")
+                continue
 
-        response = model.generate_content(
-            user_content,
-            generation_config={"temperature": 0.2}
-        )
-
-        if response and response.text:
-            return response.text.strip()
-        else:
-            return _generate_fallback_summary(patient_name, allergies, active_medicines, recent_lab_results)
+        return _generate_fallback_summary(patient_name, allergies, active_medicines, recent_lab_results)
 
     except Exception as e:
-        print(f"[Summary Service] Gemini API call failed: {e}. Utilizing fallback clinical brief.")
+        print(f"[Summary Service] Gemini API initialization failed: {e}. Utilizing fallback clinical brief.")
         return _generate_fallback_summary(patient_name, allergies, active_medicines, recent_lab_results)

@@ -18,7 +18,9 @@ from app.schemas.timeline import (
     TimelineMedicineItem,
     TimelineLabItem,
     TimelineDocumentMeta,
+    CDSInsightsResponse,
 )
+from app.services.cds_service import evaluate_cross_center_cds
 
 router = APIRouter(prefix="/timeline", tags=["Health Timeline"])
 
@@ -368,8 +370,22 @@ def get_health_timeline(
         )
         timeline_items.append(item)
 
+    # Evaluate Multicenter Clinical Decision Support (CDS) & Knowledge Graph
+    user_obj = db.query(User).filter(User.id == target_user_id).first()
+    all_meds_flat = [m for sublist in meds_by_doc.values() for m in sublist]
+    all_labs_flat = [l for sublist in labs_by_doc.values() for l in sublist]
+
+    cds_insights = evaluate_cross_center_cds(
+        patient_id=target_user_id,
+        patient_name=user_obj.full_name if user_obj else "Patient",
+        records=records,
+        medicines=all_meds_flat,
+        labs=all_labs_flat,
+    )
+
     return TimelineResponse(
         success=True,
         total_records=len(timeline_items),
         records=timeline_items,
+        cds_insights=cds_insights,
     )

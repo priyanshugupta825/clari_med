@@ -22,6 +22,7 @@ import { format, parseISO } from 'date-fns';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { getDocumentViewUrl } from '../lib/documentUrl';
+import { CDSAlertBanner } from '../components/cds/CDSAlertBanner';
 
 const TYPE_CONFIG = {
   prescription: {
@@ -64,6 +65,7 @@ const TYPE_CONFIG = {
 export const Timeline = () => {
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
+  const [cdsInsights, setCdsInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -92,6 +94,10 @@ export const Timeline = () => {
           initialExpanded[r.id] = idx < 2;
         });
         setExpandedMap(initialExpanded);
+      }
+
+      if (response.data?.cds_insights) {
+        setCdsInsights(response.data.cds_insights);
       }
     } catch (err) {
       console.error('Failed to fetch timeline:', err);
@@ -151,12 +157,18 @@ export const Timeline = () => {
         <button
           onClick={fetchTimeline}
           disabled={loading}
-          className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-xs font-bold text-brand-800 shadow-2xs transition"
+          className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-xs font-bold text-brand-800 shadow-2xs transition cursor-pointer"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh</span>
         </button>
       </div>
+
+      {/* Multicenter Clinical Decision Support (CDS) Banner */}
+      <CDSAlertBanner
+        cdsInsights={cdsInsights}
+        patientName={user?.full_name || user?.name || 'Patient'}
+      />
 
       {/* Search Bar & Filter Bar */}
       <div className="bg-white rounded-3xl border border-brand-100 p-4 shadow-2xs space-y-3">
