@@ -291,6 +291,18 @@ def list_documents(
         .order_by(Document.uploaded_at.desc())
         .all()
     )
+
+    # If demo user and empty, seed initial demo documents so Vault is never empty
+    if not documents and user_id in ["demo-user-123", "default_user"]:
+        from app.routers.timeline import _seed_demo_timeline
+        _seed_demo_timeline(db, user_id)
+        documents = (
+            db.query(Document)
+            .filter(Document.user_id == user_id)
+            .order_by(Document.uploaded_at.desc())
+            .all()
+        )
+
     return [DocumentResponse.from_orm(d) for d in documents]
 
 

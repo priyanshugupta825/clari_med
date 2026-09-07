@@ -18,20 +18,37 @@ apiClient.interceptors.request.use(
       // 1. Check Supabase auth session
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
+      const supabaseUser = data?.session?.user;
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // 2. Attach User ID & Email from local session for consistency
-      const savedUser = localStorage.getItem('demo_user');
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.id) {
-          config.headers['X-User-Id'] = parsed.id;
+      // Priority 1: Supabase Authenticated User ID
+      if (supabaseUser?.id) {
+        config.headers['X-User-Id'] = supabaseUser.id;
+        if (supabaseUser.email) {
+          config.headers['X-User-Email'] = supabaseUser.email;
         }
-        if (parsed.email) {
-          config.headers['X-User-Email'] = parsed.email;
+      } else {
+        // Priority 2: Saved user / demo session
+        const savedUser = localStorage.getItem('demo_user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed.id) {
+              config.headers['X-User-Id'] = parsed.id;
+            }
+            if (parsed.email) {
+              config.headers['X-User-Email'] = parsed.email;
+            }
+          } catch {
+            config.headers['X-User-Id'] = 'demo-user-123';
+          }
+        } else {
+          config.headers['X-User-Id'] = 'demo-user-123';
         }
+
         if (!token) {
           config.headers.Authorization = `Bearer demo-token-12345`;
         }

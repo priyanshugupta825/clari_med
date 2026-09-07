@@ -29,6 +29,11 @@ export const AuthProvider = ({ children }) => {
           setSession(session);
           setUser(session.user);
           setDemoMode(false);
+          localStorage.setItem('demo_user', JSON.stringify({
+            id: session.user.id,
+            email: session.user.email,
+            user_metadata: session.user.user_metadata || {},
+          }));
         }
         setLoading(false);
       }).catch(() => {
@@ -43,6 +48,11 @@ export const AuthProvider = ({ children }) => {
           setSession(session);
           setUser(session.user);
           setDemoMode(false);
+          localStorage.setItem('demo_user', JSON.stringify({
+            id: session.user.id,
+            email: session.user.email,
+            user_metadata: session.user.user_metadata || {},
+          }));
         }
         setLoading(false);
       });
@@ -79,6 +89,11 @@ export const AuthProvider = ({ children }) => {
           setUser(res.data.user);
           setSession(res.data.session);
           setDemoMode(false);
+          localStorage.setItem('demo_user', JSON.stringify({
+            id: res.data.user.id,
+            email: res.data.user.email,
+            user_metadata: res.data.user.user_metadata || {},
+          }));
           return { data: res.data, error: null };
         }
         console.warn('Supabase signin error or unconfirmed email, activating seamless login:', res.error);
@@ -105,6 +120,11 @@ export const AuthProvider = ({ children }) => {
           setUser(res.data.user);
           setSession(res.data.session);
           setDemoMode(false);
+          localStorage.setItem('demo_user', JSON.stringify({
+            id: res.data.user.id,
+            email: res.data.user.email,
+            user_metadata: metadata,
+          }));
           return { data: res.data, error: null };
         }
         console.warn('Supabase signup notice, activating fallback:', res.error);
