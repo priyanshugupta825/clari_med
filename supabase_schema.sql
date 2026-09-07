@@ -184,3 +184,54 @@ CREATE INDEX IF NOT EXISTS idx_access_logs_user_id ON public.access_logs(user_id
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('medical-records', 'medical-records', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- =============================================================================
+-- Row Level Security (RLS) & Access Policies (Fixes Supabase Security Advisor)
+-- =============================================================================
+
+-- 1. Enable RLS on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.emergency_info ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.extracted_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.medicines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.medicine_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lab_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.consent_shares ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.access_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.emergency_qr_tokens ENABLE ROW LEVEL SECURITY;
+
+-- 2. Allow full access policies for application backend and authenticated users
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Allow full access to users" ON public.users;
+    CREATE POLICY "Allow full access to users" ON public.users FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to emergency_info" ON public.emergency_info;
+    CREATE POLICY "Allow full access to emergency_info" ON public.emergency_info FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to documents" ON public.documents;
+    CREATE POLICY "Allow full access to documents" ON public.documents FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to extracted_records" ON public.extracted_records;
+    CREATE POLICY "Allow full access to extracted_records" ON public.extracted_records FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to medicines" ON public.medicines;
+    CREATE POLICY "Allow full access to medicines" ON public.medicines FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to medicine_logs" ON public.medicine_logs;
+    CREATE POLICY "Allow full access to medicine_logs" ON public.medicine_logs FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to lab_results" ON public.lab_results;
+    CREATE POLICY "Allow full access to lab_results" ON public.lab_results FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to consent_shares" ON public.consent_shares;
+    CREATE POLICY "Allow full access to consent_shares" ON public.consent_shares FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to access_logs" ON public.access_logs;
+    CREATE POLICY "Allow full access to access_logs" ON public.access_logs FOR ALL USING (true);
+
+    DROP POLICY IF EXISTS "Allow full access to emergency_qr_tokens" ON public.emergency_qr_tokens;
+    CREATE POLICY "Allow full access to emergency_qr_tokens" ON public.emergency_qr_tokens FOR ALL USING (true);
+END $$;
+
