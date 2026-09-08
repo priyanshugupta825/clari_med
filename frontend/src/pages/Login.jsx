@@ -1,116 +1,175 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { HeartPulse, ArrowRight, Lock, Mail, Sparkles, User, ShieldCheck } from 'lucide-react';
+import { HeartPulse, ArrowRight, Lock, Mail, Eye, EyeOff, AlertCircle, ShieldCheck, Sparkles, Loader2 } from 'lucide-react';
 
 export const Login = () => {
-  const [email, setEmail] = useState('ravi.kumar@abdm.gov.in');
-  const [password, setPassword] = useState('demo123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { instantDemoLogin } = useAuth();
+  
+  const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleLogin = (e) => {
-    if (e) e.preventDefault();
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+
     setLoading(true);
-    
-    // Normal seamless instant login
-    const name = email.includes('ravi') 
-      ? 'Ravi Kumar' 
-      : email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Patient User';
-    
-    instantDemoLogin(email || 'ravi.kumar@abdm.gov.in', name, '91-4521-8890-4123');
-    
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 150);
+
+    try {
+      await signIn(email, password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error('Login error:', err);
+      if (err.message?.includes('Invalid login credentials')) {
+        setError('Invalid email or password. Please check your credentials and try again.');
+      } else if (err.message?.includes('Email not confirmed')) {
+        setError('Your email is not verified yet. Please check your inbox or sign in.');
+      } else {
+        setError(err.message || 'Failed to sign in. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-brand-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-slate-50 to-sand-50/50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        {/* Brand Icon */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-3xl bg-brand-600 flex items-center justify-center text-white shadow-lg shadow-brand-600/20">
+          <div className="w-16 h-16 rounded-3xl bg-brand-600 flex items-center justify-center text-white shadow-xl shadow-brand-600/25 ring-8 ring-brand-100/60">
             <HeartPulse className="w-9 h-9" />
           </div>
         </div>
-        <h2 className="mt-4 text-center text-2xl sm:text-3xl font-extrabold text-brand-950 tracking-tight">
-          ClariMed
+        <h2 className="mt-5 text-center text-2xl sm:text-3xl font-extrabold text-brand-950 tracking-tight">
+          Welcome to ClariMed
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-500 font-medium">
-          Unified AI Health Record Ecosystem for ABDM
+        <p className="mt-1.5 text-center text-xs sm:text-sm text-slate-500 font-medium max-w-xs mx-auto">
+          Sign in to access your unified personal health records & clinical insights
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl shadow-brand-900/5 sm:rounded-3xl sm:px-10 border border-brand-100 space-y-6">
+        <div className="bg-white py-8 px-6 shadow-xl shadow-slate-200/50 sm:rounded-3xl sm:px-10 border border-brand-100/80 space-y-6">
           
-          {/* Active Demo Patient Profile Card */}
-          <div className="p-4 bg-brand-50/80 border border-brand-200 rounded-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
-              RK
+          {/* Error Alert */}
+          {error && (
+            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200/80 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-brand-950 truncate">Ravi Kumar</span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-200/70 text-brand-900">ABDM Verified</span>
-              </div>
-              <p className="text-xs text-slate-500 font-mono">ABHA: 91-4521-8890-4123</p>
-            </div>
-          </div>
+          )}
 
-          <form className="space-y-4" onSubmit={handleLogin}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* Email Field */}
             <div>
-              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
-                Patient Email / ABHA ID
+              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+                Email Address
               </label>
               <div className="relative rounded-xl shadow-2xs">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-brand-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Mail className="h-4 w-4" />
                 </div>
                 <input
-                  type="text"
+                  type="email"
                   required
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ravi.kumar@abdm.gov.in"
-                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-brand-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-brand-50/20"
+                  placeholder="name@example.com"
+                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-slate-50/40 focus:bg-white"
                 />
               </div>
             </div>
 
+            {/* Password Field */}
             <div>
-              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
                 Password
               </label>
               <div className="relative rounded-xl shadow-2xs">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-brand-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="h-4 w-4" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-brand-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-brand-50/20"
+                  placeholder="Enter your password"
+                  className="block w-full pl-10 pr-10 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-slate-50/40 focus:bg-white"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-brand-200" />
-              <span>{loading ? 'Entering Vault...' : 'Enter Health Vault'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold text-sm shadow-md shadow-brand-600/25 hover:shadow-lg transition-all duration-200 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
-          <div className="pt-2 text-center text-xs text-slate-500">
-            India's Digital Health Mission Platform (Creative Tinkers)
+          {/* Divider */}
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="shrink-0 mx-3 text-slate-400 text-xs font-medium">New to ClariMed?</span>
+            <div className="flex-grow border-t border-slate-200"></div>
+          </div>
+
+          {/* Create Account Link */}
+          <div className="text-center">
+            <Link
+              to="/signup"
+              className="inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-100/60 text-brand-900 font-semibold text-xs transition-colors"
+            >
+              Create a New Account ?
+            </Link>
+          </div>
+
+          {/* Security Badge */}
+          <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Encrypted with ABDM & DPDP Security Standards</span>
           </div>
         </div>
       </div>

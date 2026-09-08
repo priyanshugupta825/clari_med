@@ -107,9 +107,27 @@ export const Sidebar = ({ isMobileOpen, closeMobile }) => {
           </nav>
         </div>
 
-        {/* Bottom Safety & Disclaimer footer */}
-        <div className="p-4 border-t border-brand-100">
-          <div className="p-3 rounded-xl bg-sand-100/90 border border-sand-300 text-[11px] text-sand-700 leading-relaxed">
+        {/* Bottom User Info & Safety Disclaimer footer */}
+        <div className="p-4 border-t border-brand-100 space-y-3">
+          {user && (
+            <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/70 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0 uppercase shadow-2xs">
+                  {(user.user_metadata?.full_name || user.email || 'P').charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-brand-950 truncate capitalize">
+                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="p-2.5 rounded-xl bg-sand-100/90 border border-sand-300 text-[10px] text-sand-700 leading-relaxed">
             <span className="font-semibold text-sand-800 block">AI Clinical Guardrail</span>
             Insights are assistive. Consult your certified doctor for medical decisions.
           </div>
