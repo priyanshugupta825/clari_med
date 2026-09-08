@@ -12,6 +12,7 @@ from app.routers.documents import router as documents_router
 from app.routers.timeline import router as timeline_router
 from app.routers.emergency import router as emergency_router
 from app.routers.consent import router as consent_router
+from app.routers.assistant import router as assistant_router
 from app.services.storage_service import LOCAL_UPLOAD_DIR
 
 
@@ -62,6 +63,7 @@ app.include_router(documents_router, prefix="/api")
 app.include_router(timeline_router, prefix="/api")
 app.include_router(emergency_router, prefix="/api")
 app.include_router(consent_router, prefix="/api")
+app.include_router(assistant_router, prefix="/api")
 
 
 @app.get("/")

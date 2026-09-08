@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "author": "PBL IoT Team (Tushar, Priyanshu, Abhishek, Sandeep)",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp8266-nodemcu-v2",
+      "id": "esp",
+      "top": 20,
+      "left": 150,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "ultrasonic",
+      "top": -140,
+      "left": 160,
+      "attrs": { "distance": "25" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo",
+      "top": -120,
+      "left": 360,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pir-motion-sensor",
+      "id": "ir_sensor",
+      "top": 180,
+      "left": -60,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": 120,
+      "left": 420,
+      "attrs": { "hasLocalSound": "true" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_red",
+      "top": 250,
+      "left": 370,
+      "attrs": { "color": "red", "label": "Full Alert" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_green",
+      "top": 250,
+      "left": 430,
+      "attrs": { "color": "green", "label": "Normal Status" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 310,
+      "left": 360,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 310,
+      "left": 420,
+      "attrs": { "value": "220" }
+    }
+  ],
+  "connections": [
+    [ "esp:3V3", "ultrasonic:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "ultrasonic:GND", "black", [ "v0" ] ],
+    [ "esp:D1", "ultrasonic:TRIG", "blue", [ "v0" ] ],
+    [ "esp:D2", "ultrasonic:ECHO", "green", [ "v0" ] ],
+
+    [ "esp:VIN", "servo:V+", "red", [ "v0" ] ],
+    [ "esp:GND.2", "servo:GND", "black", [ "v0" ] ],
+    [ "esp:D4", "servo:PWM", "orange", [ "v0" ] ],
+
+    [ "esp:3V3", "ir_sensor:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.3", "ir_sensor:GND", "black", [ "v0" ] ],
+    [ "esp:D5", "ir_sensor:OUT", "yellow", [ "v0" ] ],
+
+    [ "esp:D6", "buzzer:2", "purple", [ "v0" ] ],
+    [ "esp:GND.2", "buzzer:1", "black", [ "v0" ] ],
+
+    [ "esp:D7", "led_red:A", "red", [ "v0" ] ],
+    [ "led_red:C", "r1:1", "black", [ "v0" ] ],
+    [ "r1:2", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "esp:D8", "led_green:A", "green", [ "v0" ] ],
+    [ "led_green:C", "r2:1", "black", [ "v0" ] ],
+    [ "r2:2", "esp:GND.2", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}

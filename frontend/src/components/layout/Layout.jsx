@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
+import { AIAssistantWidget } from '../assistant/AIAssistantWidget';
 
 export const Layout = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -19,6 +20,9 @@ export const Layout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Interactive AI Health Assistant Chat Widget */}
+      <AIAssistantWidget />
     </div>
   );
 };

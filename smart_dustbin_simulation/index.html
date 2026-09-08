@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Dustbin Monitoring System - IoT Simulation</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-border: #334155;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-orange: #f59e0b;
+      --accent-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 10%, #1e293b 0%, #0f172a 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bg-card-border);
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      font-weight: 500;
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .badge {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+      padding: 20px 28px;
+      flex: 1;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Dustbin Simulation Canvas Area */
+    .viewport-container {
+      position: relative;
+      height: 480px;
+      background: linear-gradient(to bottom, #141f36, #0c1322);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      padding-bottom: 30px;
+      overflow: hidden;
+    }
+
+    .room-floor {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 35px;
+      background: linear-gradient(180deg, #1e293b, #0f172a);
+      border-top: 2px solid #334155;
+    }
+
+    /* SVG Dustbin Assembly */
+    .bin-svg-container {
+      position: relative;
+      width: 320px;
+      height: 400px;
+      z-index: 10;
+    }
+
+    /* Animated ultrasonic pulse */
+    .sonar-wave {
+      stroke: var(--accent-cyan);
+      fill: none;
+      stroke-width: 2;
+      opacity: 0;
+    }
+
+    .sonar-active {
+      animation: wavePing 1.2s infinite ease-out;
+    }
+
+    @keyframes wavePing {
+      0% {
+        opacity: 0.8;
+        transform: translateY(0) scaleX(0.4);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(220px) scaleX(1.4);
+      }
+    }
+
+    /* Hand icon for proximity */
+    .hand-proximity {
+      position: absolute;
+      left: 60px;
+      top: 90px;
+      font-size: 55px;
+      opacity: 0;
+      transform: translateX(-40px) rotate(-15deg);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 20;
+      filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
+      cursor: pointer;
+    }
+
+    .hand-proximity.approaching {
+      opacity: 1;
+      transform: translateX(30px) rotate(5deg);
+    }
+
+    .ir-beam {
+      position: absolute;
+      left: 170px;
+      top: 110px;
+      width: 80px;
+      height: 40px;
+      background: radial-gradient(ellipse at left, rgba(239, 68, 68, 0.6) 0%, rgba(239, 68, 68, 0) 70%);
+      transform-origin: left center;
+      transform: rotate(-165deg);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .ir-beam.active {
+      opacity: 1;
+    }
+
+    /* Dropping trash item */
+    .falling-trash {
+      position: absolute;
+      top: 30px;
+      left: 200px;
+      font-size: 32px;
+      opacity: 0;
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    @keyframes dropTrash {
+      0% {
+        opacity: 1;
+        transform: translateY(0) rotate(0deg) scale(1);
+      }
+      80% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(230px) rotate(180deg) scale(0.6);
+      }
+    }
+
+    /* Interactive Action Buttons */
+    .control-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn:hover {
+      background: #475569;
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #0891b2);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #10b981);
+    }
+    .btn-success:hover {
+      background: linear-gradient(135deg, #047857, #059669);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626, #ef4444);
+    }
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #b91c1c, #dc2626);
+    }
+
+    .sliders-panel {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      background: rgba(15, 23, 42, 0.4);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .slider-header span:last-child {
+      color: var(--accent-cyan);
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #334155;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--accent-cyan);
+    }
+
+    /* Right Column - IoT Cloud Dashboard */
+    .dashboard-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .metric-box {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 14px 16px;
+      position: relative;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .metric-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 4px;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .metric-unit {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .metric-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .badge-ok {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-orange);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      animation: alertBlink 1s infinite alternate;
+    }
+
+    @keyframes alertBlink {
+      0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+      100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.7); }
+    }
+
+    /* Gauge & Chart */
+    .chart-container {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    canvas#telemetryChart {
+      width: 100%;
+      height: 120px;
+    }
+
+    /* Live Terminal / Serial Logs */
+    .terminal-container {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.75rem;
+      height: 150px;
+      overflow-y: auto;
+      color: #38bdf8;
+    }
+
+    .terminal-line {
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .terminal-line .time {
+      color: #64748b;
+    }
+    .terminal-line.warn {
+      color: #fbbf24;
+    }
+    .terminal-line.alert {
+      color: #f87171;
+      font-weight: bold;
+    }
+    .terminal-line.success {
+      color: #34d399;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--bg-card-border);
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #334155;
+      color: #fff;
+    }
+
+    /* Circuit schematic modal/view */
+    .circuit-view {
+      display: none;
+      background: #111827;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid #374151;
+      font-size: 0.82rem;
+    }
+    .circuit-view.active {
+      display: block;
+    }
+
+    .pin-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .pin-table th, .pin-table td {
+      border: 1px solid #374151;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .pin-table th {
+      background: #1f2937;
+      color: var(--accent-cyan);
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 28px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: #1e293b;
+      border-left: 4px solid var(--accent-cyan);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      padding: 14px 18px;
+      min-width: 320px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease-out;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .toast.critical {
+      border-left-color: var(--accent-red);
+      background: #281216;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Sound indicator button */
+    .audio-toggle {
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 8px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+
+    /* Team credits bar */
+    footer {
+      background: #090d16;
+      border-top: 1px solid #1e293b;
+      padding: 12px 28px;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">♻️</div>
+      <div>
+        <h1>SMART DUSTBIN MONITORING SYSTEM</h1>
+        <p>IoT Based Smart Waste Management Solution (ESP8266 + Sensors)</p>
+      </div>
+    </div>
+
+    <div class="header-badges">
+      <button id="soundToggleBtn" class="audio-toggle">
+        <span id="soundIcon">🔊</span> <span id="soundLabel">Buzzer Sound: ON</span>
+      </button>
+
+      <div class="badge">
+        <div class="badge-dot"></div>
+        <span>NodeMCU ESP8266: <strong>ONLINE</strong></span>
+      </div>
+
+      <div class="badge">
+        <span>Wi-Fi RSSI: <strong>-54 dBm</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN SIMULATION GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT COLUMN: DUSTBIN PHYSICAL TWIN SIMULATION -->
+    <div class="card">
+      <div class="card-title">
+        <span>Hardware Twin Simulation (Physical View)</span>
+        <span id="lidStatusLabel" style="font-weight: 700; color: #10b981;">LID CLOSED (0°)</span>
+      </div>
+
+      <!-- Viewport area -->
+      <div class="viewport-container" id="viewport">
+        <!-- Room floor line -->
+        <div class="room-floor"></div>
+
+        <!-- Interactive hand hovering -->
+        <div class="hand-proximity" id="handElement" title="Click 'Wave Hand' or click this hand">✋</div>
+
+        <!-- IR Sensor Infrared Cone -->
+        <div class="ir-beam" id="irBeam"></div>
+
+        <!-- Falling trash item animation element -->
+        <div class="falling-trash" id="fallingTrash">🥤</div>
+
+        <!-- SVG Smart Dustbin -->
+        <div class="bin-svg-container">
+          <svg viewBox="0 0 320 400" width="320" height="400" id="dustbinSvg">
+            <defs>
+              <!-- Metallic bin gradient -->
+              <linearGradient id="binBodyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#1e293b" />
+                <stop offset="25%" stop-color="#334155" />
+                <stop offset="70%" stop-color="#475569" />
+                <stop offset="100%" stop-color="#1e293b" />
+              </linearGradient>
+
+              <!-- Transparent viewing window gradient -->
+              <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(2, 132, 199, 0.15)" />
+                <stop offset="50%" stop-color="rgba(6, 182, 212, 0.25)" />
+                <stop offset="100%" stop-color="rgba(2, 132, 199, 0.15)" />
+              </linearGradient>
+
+              <!-- Garbage fill gradient -->
+              <linearGradient id="garbageGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#15803d" id="garbageColorTop" />
+                <stop offset="100%" stop-color="#166534" id="garbageColorBot" />
+              </linearGradient>
+            </defs>
+
+            <!-- ================= DUSTBIN BODY ================= -->
+            <!-- Outer shell outline -->
+            <path d="M 60 130 L 70 380 Q 70 390 85 390 L 235 390 Q 250 390 250 380 L 260 130 Z"
+                  fill="url(#binBodyGrad)" stroke="#64748b" stroke-width="3" />
+
+            <!-- Transparent Front Inspection Panel -->
+            <path d="M 80 150 L 88 370 L 232 370 L 240 150 Z"
+                  fill="url(#glassGrad)" stroke="rgba(255, 255, 255, 0.2)" stroke-width="1.5" />
+
+            <!-- Graduation tick marks on bin side -->
+            <line x1="85" y1="170" x2="100" y2="170" stroke="#94a3b8" stroke-width="1.5" />
+            <text x="105" y="174" fill="#94a3b8" font-size="9" font-family="monospace">90%</text>
+
+            <line x1="86" y1="225" x2="98" y2="225" stroke="#94a3b8" stroke-width="1.5" />
+            <text x="103" y="229" fill="#94a3b8" font-size="9" font-family="monospace">60%</text>
+
+            <line x1="87" y1="280" x2="98" y2="280" stroke="#94a3b8" stroke-width="1.5" />
+            <text x="103" y="284" fill="#94a3b8" font-size="9" font-family="monospace">30%</text>
+
+            <!-- DYNAMIC GARBAGE LEVEL RECTANGLE -->
+            <!-- Mask or direct polygon for garbage inside inspection panel -->
+            <g id="garbageGroup">
+              <!-- Filled waste polygon, height updated dynamically via JS -->
+              <polygon id="garbagePolygon"
+                       points="88,370 232,370 234,350 86,350"
+                       fill="url(#garbageGrad)" opacity="0.88" />
+
+              <!-- Floating trash icons inside waste -->
+              <text id="trashIcon1" x="120" y="360" font-size="16">📦</text>
+              <text id="trashIcon2" x="170" y="365" font-size="14">📄</text>
+              <text id="trashIcon3" x="145" y="330" font-size="16" style="display:none">🥤</text>
+              <text id="trashIcon4" x="185" y="260" font-size="15" style="display:none">🥫</text>
+              <text id="trashIcon5" x="110" y="210" font-size="17" style="display:none">🥡</text>
+            </g>
+
+            <!-- Ultrasonic Sonar Waves -->
+            <path id="sonarWave1" class="sonar-wave sonar-active" d="M 135 150 Q 160 160 185 150" />
+            <path id="sonarWave2" class="sonar-wave sonar-active" style="animation-delay: 0.4s" d="M 125 170 Q 160 185 195 170" />
+            <path id="sonarWave3" class="sonar-wave sonar-active" style="animation-delay: 0.8s" d="M 115 190 Q 160 210 205 190" />
+
+            <!-- Hardware Labels on Bin -->
+            <rect x="115" y="372" width="90" height="14" rx="4" fill="#0f172a" />
+            <text x="160" y="382" fill="#38bdf8" font-size="8" font-weight="bold" text-anchor="middle" letter-spacing="1">SMART DUSTBIN</text>
+
+            <!-- IR SENSOR (Mounted on bin front near top rim) -->
+            <g id="irSensorHardware" transform="translate(145, 138)">
+              <rect x="0" y="0" width="30" height="12" rx="3" fill="#1e1e1e" stroke="#3b82f6" stroke-width="1.5" />
+              <!-- IR Transmitter LED (Clear) -->
+              <circle cx="8" cy="6" r="3.5" fill="#e2e8f0" />
+              <!-- IR Receiver Photodiode (Black) -->
+              <circle cx="22" cy="6" r="3.5" fill="#0f172a" stroke="#475569" />
+              <!-- Active detection indicator dot -->
+              <circle id="irDetectLed" cx="15" cy="6" r="1.5" fill="#64748b" />
+            </g>
+
+            <!-- BUZZER MODULE (Mounted on side) -->
+            <g id="buzzerHardware" transform="translate(254, 150)">
+              <rect x="0" y="0" width="16" height="22" rx="2" fill="#020617" stroke="#475569" />
+              <circle cx="8" cy="11" r="5" fill="#334155" />
+              <circle cx="8" cy="11" r="2" fill="#0f172a" />
+              <!-- Sound wave arcs -->
+              <path id="buzzerWave" d="M 20 6 Q 26 11 20 16" fill="none" stroke="#ef4444" stroke-width="2" style="display:none" />
+            </g>
+
+            <!-- ALERT & STATUS LEDS -->
+            <g id="ledIndicators" transform="translate(255, 185)">
+              <!-- Red Alert LED -->
+              <circle id="ledRed" cx="8" cy="8" r="5" fill="#450a0a" stroke="#7f1d1d" stroke-width="1.5" />
+              <text x="18" y="11" fill="#94a3b8" font-size="7">RED (Full)</text>
+
+              <!-- Green Normal LED -->
+              <circle id="ledGreen" cx="8" cy="24" r="5" fill="#10b981" stroke="#047857" stroke-width="1.5" />
+              <text x="18" y="27" fill="#94a3b8" font-size="7">GRN (OK)</text>
+            </g>
+
+            <!-- ================= HINGED LID & SERVO ASSEMBLY ================= -->
+            <!-- Servo Motor body at hinge (Left top) -->
+            <g id="servoMotor" transform="translate(42, 115)">
+              <!-- SG90 Blue Plastic casing -->
+              <rect x="0" y="0" width="22" height="24" rx="2" fill="#2563eb" stroke="#1d4ed8" />
+              <circle cx="11" cy="12" r="6" fill="#1e40af" />
+              <!-- Servo Horn arm (rotates) -->
+              <line id="servoArm" x1="11" y1="12" x2="20" y2="12" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+            </g>
+
+            <!-- ROTATING LID GROUP (Pivot around left hinge: cx=55, cy=125) -->
+            <g id="lidRotatingGroup" style="transform-origin: 55px 125px; transition: transform 0.6s cubic-bezier(0.34, 1.3, 0.64, 1);">
+              <!-- Main Lid Top Flap -->
+              <path d="M 50 125 L 265 125 Q 275 125 270 115 L 260 108 Q 255 105 245 105 L 70 105 Q 55 105 50 115 Z"
+                    fill="#334155" stroke="#64748b" stroke-width="2.5" />
+              <!-- Lid handle -->
+              <rect x="145" y="95" width="30" height="10" rx="3" fill="#64748b" />
+
+              <!-- ULTRASONIC SENSOR (HC-SR04) mounted under the lid -->
+              <g id="ultrasonicSensor" transform="translate(135, 126)">
+                <!-- PCB blue board -->
+                <rect x="0" y="0" width="50" height="14" rx="2" fill="#0284c7" />
+                <!-- Ultrasonic Transmitter cylinder 'T' -->
+                <circle cx="12" cy="7" r="5" fill="#94a3b8" stroke="#475569" stroke-width="1.5" />
+                <circle cx="12" cy="7" r="2.5" fill="#0f172a" />
+                <!-- Ultrasonic Receiver cylinder 'R' -->
+                <circle cx="38" cy="7" r="5" fill="#94a3b8" stroke="#475569" stroke-width="1.5" />
+                <circle cx="38" cy="7" r="2.5" fill="#0f172a" />
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Controls below dustbin -->
+      <div class="control-actions">
+        <button class="btn btn-primary" id="waveHandBtn">
+          <span>✋</span> Wave Hand (IR)
+        </button>
+        <button class="btn btn-success" id="tossTrashBtn">
+          <span>🗑️</span> Toss Trash
+        </button>
+        <button class="btn" id="emptyBinBtn">
+          <span>🧹</span> Empty Bin
+        </button>
+        <button class="btn" id="toggleLidManualBtn">
+          <span>🔄</span> Manual Lid
+        </button>
+      </div>
+
+      <!-- Sliders for testing and evaluation -->
+      <div class="sliders-panel">
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>Garbage Fill Level:</span>
+            <span id="fillPercentDisplay">35% (19.5 cm)</span>
+          </div>
+          <input type="range" id="fillSlider" min="0" max="100" value="35" />
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>Alert Threshold:</span>
+            <span id="thresholdDisplay">85%</span>
+          </div>
+          <input type="range" id="thresholdSlider" min="50" max="95" value="85" />
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: IOT CLOUD DASHBOARD & CIRCUIT TELEMETRY -->
+    <div class="card">
+      <!-- Tabs header -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="cloudTab">🌐 Cloud Telemetry (Blynk/ThingSpeak)</button>
+        <button class="tab-btn" data-tab="circuitTab">⚡ Hardware & Pinout</button>
+        <button class="tab-btn" data-tab="aboutTab">📋 Project Info</button>
+      </div>
+
+      <!-- TAB 1: IOT CLOUD PLATFORM -->
+      <div id="cloudTab" class="tab-content">
+        <!-- Live Metrics Grid -->
+        <div class="dashboard-metrics">
+          <div class="metric-box">
+            <div class="metric-label">Dustbin Capacity Level</div>
+            <div class="metric-value">
+              <span id="metricFill">35</span>
+              <span class="metric-unit">%</span>
+            </div>
+            <span class="metric-badge badge-ok" id="statusBadge">NORMAL CAPACITY</span>
+          </div>
+
+          <div class="metric-box">
+            <div class="metric-label">Ultrasonic Distance</div>
+            <div class="metric-value">
+              <span id="metricDistance">19.5</span>
+              <span class="metric-unit">cm</span>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">Sensor offset: 4 cm</span>
+          </div>
+
+          <div class="metric-box">
+            <div class="metric-label">Servo Lid Mechanism</div>
+            <div class="metric-value" style="font-size: 1.3rem;" id="metricLid">
+              CLOSED
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-muted);" id="servoAngleLabel">Servo Angle: 0°</span>
+          </div>
+
+          <div class="metric-box">
+            <div class="metric-label">Cloud Uplink Packets</div>
+            <div class="metric-value" style="font-size: 1.3rem;">
+              <span id="metricPackets">142</span>
+              <span class="metric-unit">sent</span>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--accent-green);">HTTP 200 OK</span>
+          </div>
+        </div>
+
+        <!-- Real-time Chart -->
+        <div class="chart-container">
+          <div class="chart-title">
+            <span>Live Waste Accumulation Over Time (ThingSpeak Field 1)</span>
+            <span style="color: var(--accent-cyan); font-family: monospace;">Update: 1s</span>
+          </div>
+          <canvas id="telemetryChart" width="500" height="120"></canvas>
+        </div>
+
+        <!-- Live NodeMCU Serial & Cloud Logs -->
+        <div class="card-title" style="margin-bottom: 8px;">
+          <span>NodeMCU Serial Output (115200 Baud)</span>
+          <button id="clearLogBtn" style="background:none; border:none; color: var(--accent-cyan); cursor:pointer; font-size:0.75rem;">Clear</button>
+        </div>
+        <div class="terminal-container" id="terminal">
+          <div class="terminal-line success"><span class="time">[00:00:01]</span> [BOOT] NodeMCU ESP8266 booted successfully.</div>
+          <div class="terminal-line"><span class="time">[00:00:02]</span> [WIFI] Connected to SSID 'Campus-IoT-AP'. IP: 192.168.1.45</div>
+          <div class="terminal-line"><span class="time">[00:00:03]</span> [SYSTEM] Calibration complete. Monitoring active...</div>
+        </div>
+      </div>
+
+      <!-- TAB 2: CIRCUIT & PINOUT -->
+      <div id="circuitTab" class="tab-content" style="display: none;">
+        <div class="circuit-view active">
+          <h4 style="color: var(--accent-cyan); margin-bottom: 8px;">NodeMCU ESP8266 Interfacing Pin Table</h4>
+          <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 12px;">
+            Matches exact connections specified in the PBL project presentation slide #6.
+          </p>
+          <table class="pin-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Component Pin</th>
+                <th>NodeMCU Pin</th>
+                <th>GPIO Number</th>
+                <th>Current Logic State</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>HC-SR04 Ultrasonic</strong></td>
+                <td>Trig</td>
+                <td><code style="color:#38bdf8">D1</code></td>
+                <td>GPIO 5</td>
+                <td><span id="pinTrigState" style="color:#10b981">PULSING (10µs)</span></td>
+              </tr>
+              <tr>
+                <td><strong>HC-SR04 Ultrasonic</strong></td>
+                <td>Echo</td>
+                <td><code style="color:#38bdf8">D2</code></td>
+                <td>GPIO 4</td>
+                <td><span id="pinEchoState" style="color:#38bdf8">INPUT ACTIVE</span></td>
+              </tr>
+              <tr>
+                <td><strong>SG90 Servo Motor</strong></td>
+                <td>PWM (Orange)</td>
+                <td><code style="color:#38bdf8">D4</code></td>
+                <td>GPIO 2</td>
+                <td><span id="pinServoState" style="color:#f59e0b">0° (1.0ms PWM)</span></td>
+              </tr>
+              <tr>
+                <td><strong>IR Obstacle Sensor</strong></td>
+                <td>OUT / Signal</td>
+                <td><code style="color:#38bdf8">D5</code></td>
+                <td>GPIO 14</td>
+                <td><span id="pinIrState" style="color:#94a3b8">HIGH (No obstacle)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Active Buzzer</strong></td>
+                <td>Positive (+)</td>
+                <td><code style="color:#38bdf8">D6</code></td>
+                <td>GPIO 12</td>
+                <td><span id="pinBuzzerState" style="color:#64748b">LOW (Silent)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Red Alert LED</strong></td>
+                <td>Anode (+)</td>
+                <td><code style="color:#38bdf8">D7</code></td>
+                <td>GPIO 13</td>
+                <td><span id="pinLedRedState" style="color:#64748b">LOW (Off)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Green Status LED</strong></td>
+                <td>Anode (+)</td>
+                <td><code style="color:#38bdf8">D8</code></td>
+                <td>GPIO 15</td>
+                <td><span id="pinLedGreenState" style="color:#10b981">HIGH (Active)</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top: 16px; padding: 12px; background: rgba(2, 132, 199, 0.1); border-left: 3px solid var(--accent-cyan); border-radius: 4px;">
+            <strong>Power Supply Distribution:</strong> NodeMCU VIN and 3V3 power rails supply 5V to the SG90 servo and 3.3V/5V to the ultrasonic and IR sensors through a common ground (GND) rail.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: PROJECT INFO -->
+      <div id="aboutTab" class="tab-content" style="display: none;">
+        <div class="circuit-view active">
+          <h3 style="color: var(--accent-cyan); margin-bottom: 6px;">Smart Dustbin Monitoring System</h3>
+          <p style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.6; margin-bottom: 14px;">
+            Project Based Learning (PBL) – Subject: <strong>Internet of Things (IoT)</strong><br />
+            Department of Computer Science & Engineering
+          </p>
+
+          <h4 style="color: #f8fafc; font-size: 0.85rem; margin-bottom: 8px;">Project Team:</h4>
+          <ul style="list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; margin-bottom: 16px;">
+            <li style="background:#1f2937; padding:8px; border-radius:6px;">👤 <strong>Tushar Hari</strong> (Roll No: 24)</li>
+            <li style="background:#1f2937; padding:8px; border-radius:6px;">👤 <strong>Priyanshu Gupta</strong> (Roll No: 20)</li>
+            <li style="background:#1f2937; padding:8px; border-radius:6px;">👤 <strong>Abhishek Kr Mandal</strong> (Roll No: 59)</li>
+            <li style="background:#1f2937; padding:8px; border-radius:6px;">👤 <strong>Sandeep Kumar</strong> (Roll No: 44)</li>
+          </ul>
+
+          <h4 style="color: #f8fafc; font-size: 0.85rem; margin-bottom: 6px;">Key Working Principles:</h4>
+          <ol style="margin-left: 18px; color: var(--text-muted); font-size: 0.8rem; line-height: 1.6;">
+            <li><strong>Touch-free Lid:</strong> When user approaches hand, the IR sensor detects reflection and triggers the SG90 servo motor to rotate 90°, opening the lid. After 3 seconds without hand detection, the lid automatically closes.</li>
+            <li><strong>Garbage Level Sensing:</strong> HC-SR04 ultrasonic sensor emits 40 kHz pulses, calculates echo travel time, and computes fill % = ((Bin_Height - Distance) / Bin_Height) * 100.</li>
+            <li><strong>Threshold Alerting:</strong> When fill level reaches or exceeds the threshold (85%), NodeMCU sounds the local buzzer, blinks the red LED, and transmits a real-time Wi-Fi alert to the IoT cloud dashboard.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- FOOTER -->
+  <footer>
+    SMART DUSTBIN MONITORING SYSTEM &bull; IoT Based Smart Waste Management Solution &bull; Dept. of CSE (PBL)
+  </footer>
+
+  <!-- JAVASCRIPT LOGIC ENGINE -->
+  <script>
+    // System State
+    const state = {
+      binHeightCm: 30.0,
+      sensorOffsetCm: 4.0,
+      fillPercentage: 35.0,
+      thresholdPercentage: 85.0,
+      isLidOpen: false,
+      isHandDetected: false,
+      lidOpenTimer: null,
+      soundEnabled: true,
+      packetsSent: 142,
+      lastAlertTime: 0
+    };
+
+    // DOM Elements
+    const handElement = document.getElementById('handElement');
+    const irBeam = document.getElementById('irBeam');
+    const fallingTrash = document.getElementById('fallingTrash');
+    const lidRotatingGroup = document.getElementById('lidRotatingGroup');
+    const servoArm = document.getElementById('servoArm');
+    const garbagePolygon = document.getElementById('garbagePolygon');
+    const irDetectLed = document.getElementById('irDetectLed');
+    const buzzerWave = document.getElementById('buzzerWave');
+    const ledRed = document.getElementById('ledRed');
+    const ledGreen = document.getElementById('ledGreen');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIcon = document.getElementById('soundIcon');
+    const soundLabel = document.getElementById('soundLabel');
+    const fillSlider = document.getElementById('fillSlider');
+    const thresholdSlider = document.getElementById('thresholdSlider');
+    const fillPercentDisplay = document.getElementById('fillPercentDisplay');
+    const thresholdDisplay = document.getElementById('thresholdDisplay');
+    const metricFill = document.getElementById('metricFill');
+    const metricDistance = document.getElementById('metricDistance');
+    const metricLid = document.getElementById('metricLid');
+    const servoAngleLabel = document.getElementById('servoAngleLabel');
+    const metricPackets = document.getElementById('metricPackets');
+    const statusBadge = document.getElementById('statusBadge');
+    const lidStatusLabel = document.getElementById('lidStatusLabel');
+    const terminal = document.getElementById('terminal');
+    const toastContainer = document.getElementById('toastContainer');
+
+    // Pin logic display elements
+    const pinServoState = document.getElementById('pinServoState');
+    const pinIrState = document.getElementById('pinIrState');
+    const pinBuzzerState = document.getElementById('pinBuzzerState');
+    const pinLedRedState = document.getElementById('pinLedRedState');
+    const pinLedGreenState = document.getElementById('pinLedGreenState');
+
+    // Chart Setup
+    const chartCanvas = document.getElementById('telemetryChart');
+    const ctx = chartCanvas.getContext('2d');
+    const chartHistory = Array.from({ length: 30 }, (_, i) => 30 + Math.sin(i * 0.5) * 5);
+
+    function drawChart() {
+      const w = chartCanvas.width;
+      const h = chartCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw subtle grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let y = 0; y <= h; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Draw Threshold Line
+      const threshY = h - (state.thresholdPercentage / 100) * (h - 20) - 10;
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, threshY);
+      ctx.lineTo(w, threshY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw Fill Level Curve
+      ctx.beginPath();
+      const step = w / (chartHistory.length - 1);
+      chartHistory.forEach((val, index) => {
+        const x = index * step;
+        const y = h - (val / 100) * (h - 20) - 10;
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      // Fill area under curve
+      ctx.strokeStyle = state.fillPercentage >= state.thresholdPercentage ? '#ef4444' : '#06b6d4';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.fillStyle = state.fillPercentage >= state.thresholdPercentage
+        ? 'rgba(239, 68, 68, 0.15)'
+        : 'rgba(6, 182, 212, 0.15)';
+      ctx.fill();
+    }
+
+    // Web Audio Synthesizer for Buzzer
+    let audioCtx = null;
+    let buzzerOscillator = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playBuzzerTone() {
+      if (!state.soundEnabled) return;
+      initAudio();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      if (buzzerOscillator) return; // already playing
+
+      try {
+        buzzerOscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        buzzerOscillator.type = 'square';
+        buzzerOscillator.frequency.setValueAtTime(2000, audioCtx.currentTime); // 2kHz tone
+
+        // Pulsing gain
+        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+
+        buzzerOscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        buzzerOscillator.start();
+      } catch (e) {
+        console.log('Audio error:', e);
+      }
+    }
+
+    function stopBuzzerTone() {
+      if (buzzerOscillator) {
+        try {
+          buzzerOscillator.stop();
+          buzzerOscillator.disconnect();
+        } catch (e) {}
+        buzzerOscillator = null;
+      }
+    }
+
+    // Terminal Logging Helper
+    function logTerminal(msg, type = 'normal') {
+      const now = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = `terminal-line ${type}`;
+      div.innerHTML = `<span class="time">[${now}]</span> ${msg}`;
+      terminal.appendChild(div);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    // Toast Alert Helper
+    function showToast(title, message, isCritical = false) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${isCritical ? 'critical' : ''}`;
+      toast.innerHTML = `
+        <div style="font-size: 24px;">${isCritical ? '🚨' : '📡'}</div>
+        <div>
+          <div style="font-weight: 700; font-size: 0.85rem;">${title}</div>
+          <div style="font-size: 0.76rem; color: #cbd5e1; margin-top: 2px;">${message}</div>
+        </div>
+      `;
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.4s ease';
+        setTimeout(() => toast.remove(), 400);
+      }, 4000);
+    }
+
+    // Hardware Calculations
+    function updatePhysics() {
+      // Calculate distance based on fill percentage
+      // Effective height = 30 - 4 = 26cm
+      const effectiveHeight = state.binHeightCm - state.sensorOffsetCm;
+      const filledHeight = (state.fillPercentage / 100) * effectiveHeight;
+      const distance = (state.binHeightCm - filledHeight).toFixed(1);
+
+      // SVG garbage polygon coordinates
+      // Bottom of bin inspection: y=370, top of inspection: y=150 (Total height = 220px)
+      const maxSvgHeight = 220;
+      const svgFillPx = (state.fillPercentage / 100) * maxSvgHeight;
+      const topY = 370 - svgFillPx;
+
+      // Adjust polygon top points
+      garbagePolygon.setAttribute('points', `88,370 232,370 236,${topY} 84,${topY}`);
+
+      // Dynamic color for garbage gradient top
+      const topColor = document.getElementById('garbageColorTop');
+      const botColor = document.getElementById('garbageColorBot');
+      if (state.fillPercentage >= state.thresholdPercentage) {
+        topColor.setAttribute('stop-color', '#dc2626');
+        botColor.setAttribute('stop-color', '#991b1b');
+      } else if (state.fillPercentage >= 70) {
+        topColor.setAttribute('stop-color', '#d97706');
+        botColor.setAttribute('stop-color', '#b45309');
+      } else {
+        topColor.setAttribute('stop-color', '#15803d');
+        botColor.setAttribute('stop-color', '#166534');
+      }
+
+      // Show/hide trash icons depending on volume
+      document.getElementById('trashIcon3').style.display = state.fillPercentage > 45 ? 'block' : 'none';
+      document.getElementById('trashIcon4').style.display = state.fillPercentage > 70 ? 'block' : 'none';
+      document.getElementById('trashIcon5').style.display = state.fillPercentage > 85 ? 'block' : 'none';
+
+      // Update Displays
+      fillPercentDisplay.innerText = `${Math.round(state.fillPercentage)}% (${distance} cm)`;
+      thresholdDisplay.innerText = `${state.thresholdPercentage}%`;
+      metricFill.innerText = Math.round(state.fillPercentage);
+      metricDistance.innerText = distance;
+
+      // Check Full Threshold
+      const isFull = state.fillPercentage >= state.thresholdPercentage;
+
+      if (isFull) {
+        statusBadge.className = 'metric-badge badge-danger';
+        statusBadge.innerText = 'CRITICAL OVERFLOW ALERT';
+
+        // Local Alert Indicators
+        ledRed.setAttribute('fill', '#ef4444');
+        ledRed.setAttribute('stroke', '#f87171');
+        ledGreen.setAttribute('fill', '#064e3b');
+        buzzerWave.style.display = 'block';
+
+        pinBuzzerState.innerHTML = '<strong style="color:#ef4444">HIGH (2000Hz Pulse)</strong>';
+        pinLedRedState.innerHTML = '<strong style="color:#ef4444">HIGH (ON)</strong>';
+        pinLedGreenState.innerHTML = '<span style="color:#64748b">LOW (OFF)</span>';
+
+        playBuzzerTone();
+
+        // Trigger Cloud Alert Toast if not triggered recently
+        const now = Date.now();
+        if (now - state.lastAlertTime > 8000) {
+          state.lastAlertTime = now;
+          showToast(
+            '⚠️ Wi-Fi Alert Sent!',
+            `Dustbin reached ${Math.round(state.fillPercentage)}% (Threshold: ${state.thresholdPercentage}%). Alert dispatched to Blynk app & sanitation team.`,
+            true
+          );
+          logTerminal(`[ALERT] Wi-Fi alert transmitted! Fill level: ${Math.round(state.fillPercentage)}% exceeds threshold.`, 'alert');
+        }
+      } else {
+        if (state.fillPercentage >= 70) {
+          statusBadge.className = 'metric-badge badge-warning';
+          statusBadge.innerText = 'WARNING: FILLING RAPIDLY';
+        } else {
+          statusBadge.className = 'metric-badge badge-ok';
+          statusBadge.innerText = 'NORMAL CAPACITY';
+        }
+
+        ledRed.setAttribute('fill', '#450a0a');
+        ledRed.setAttribute('stroke', '#7f1d1d');
+        ledGreen.setAttribute('fill', '#10b981');
+        buzzerWave.style.display = 'none';
+
+        pinBuzzerState.innerHTML = '<span style="color:#64748b">LOW (Silent)</span>';
+        pinLedRedState.innerHTML = '<span style="color:#64748b">LOW (OFF)</span>';
+        pinLedGreenState.innerHTML = '<span style="color:#10b981">HIGH (Active)</span>';
+
+        stopBuzzerTone();
+      }
+
+      drawChart();
+    }
+
+    // LID CONTROL ENGINE
+    function openLid(reason = 'Hand Detected') {
+      if (state.isLidOpen) {
+        // Reset auto-close timer if already open
+        clearTimeout(state.lidOpenTimer);
+        startAutoCloseTimer();
+        return;
+      }
+
+      state.isLidOpen = true;
+      lidRotatingGroup.style.transform = 'rotate(-85deg)';
+      servoArm.setAttribute('x2', '12');
+      servoArm.setAttribute('y2', '3'); // rotated horn
+
+      metricLid.innerHTML = '<span style="color:#38bdf8">OPEN</span>';
+      servoAngleLabel.innerText = 'Servo Angle: 90° (PWM)';
+      lidStatusLabel.innerText = 'LID OPEN (90°)';
+      lidStatusLabel.style.color = '#38bdf8';
+      pinServoState.innerHTML = '<span style="color:#38bdf8">90° (2.0ms PWM)</span>';
+
+      logTerminal(`[SERVO] ${reason}. Rotating SG90 servo to 90° (Lid Opened).`, 'success');
+      startAutoCloseTimer();
+    }
+
+    function closeLid() {
+      if (!state.isLidOpen) return;
+
+      state.isLidOpen = false;
+      lidRotatingGroup.style.transform = 'rotate(0deg)';
+      servoArm.setAttribute('x2', '20');
+      servoArm.setAttribute('y2', '12'); // reset horn
+
+      metricLid.innerHTML = 'CLOSED';
+      servoAngleLabel.innerText = 'Servo Angle: 0°';
+      lidStatusLabel.innerText = 'LID CLOSED (0°)';
+      lidStatusLabel.style.color = '#10b981';
+      pinServoState.innerHTML = '<span style="color:#f59e0b">0° (1.0ms PWM)</span>';
+
+      logTerminal('[SERVO] Auto-timeout expired. Returning SG90 servo to 0° (Lid Closed).');
+    }
+
+    function startAutoCloseTimer() {
+      clearTimeout(state.lidOpenTimer);
+      state.lidOpenTimer = setTimeout(() => {
+        if (!state.isHandDetected) {
+          closeLid();
+        }
+      }, 3000); // 3-second delay as in presentation
+    }
+
+    // Trigger Hand Proximity Event
+    function triggerHandApproach() {
+      handElement.classList.add('approaching');
+      irBeam.classList.add('active');
+      irDetectLed.setAttribute('fill', '#ef4444');
+      pinIrState.innerHTML = '<strong style="color:#ef4444">LOW (Object Detected)</strong>';
+      state.isHandDetected = true;
+
+      openLid('IR Sensor Triggered');
+
+      setTimeout(() => {
+        handElement.classList.remove('approaching');
+        irBeam.classList.remove('active');
+        irDetectLed.setAttribute('fill', '#64748b');
+        pinIrState.innerHTML = '<span style="color:#94a3b8">HIGH (No obstacle)</span>';
+        state.isHandDetected = false;
+      }, 1500);
+    }
+
+    // Toss Trash Animation
+    function tossTrash() {
+      // Auto open lid if closed
+      if (!state.isLidOpen) {
+        openLid('Tossing Trash');
+      }
+
+      const trashIcons = ['🥤', '📄', '🥫', '📦', '🥡', '🍌'];
+      const randomIcon = trashIcons[Math.floor(Math.random() * trashIcons.length)];
+      fallingTrash.innerText = randomIcon;
+      fallingTrash.style.animation = 'none';
+      void fallingTrash.offsetWidth; // trigger reflow
+      fallingTrash.style.animation = 'dropTrash 0.7s forwards ease-in';
+
+      // Increase fill level by 8-15%
+      setTimeout(() => {
+        const increment = 8 + Math.random() * 7;
+        state.fillPercentage = Math.min(100, state.fillPercentage + increment);
+        fillSlider.value = state.fillPercentage;
+        updatePhysics();
+        logTerminal(`[WASTE] Item dropped into bin. Fill level increased to ${Math.round(state.fillPercentage)}%.`);
+      }, 400);
+    }
+
+    // Empty Bin Action
+    function emptyBin() {
+      state.fillPercentage = 0;
+      fillSlider.value = 0;
+      updatePhysics();
+      showToast('🧹 Dustbin Emptied', 'Sanitation staff successfully cleared the bin.');
+      logTerminal('[MAINTENANCE] Dustbin emptied by collection team. Fill level reset to 0%.', 'success');
+    }
+
+    // Event Listeners
+    document.getElementById('waveHandBtn').addEventListener('click', triggerHandApproach);
+    handElement.addEventListener('click', triggerHandApproach);
+    document.getElementById('tossTrashBtn').addEventListener('click', tossTrash);
+    document.getElementById('emptyBinBtn').addEventListener('click', emptyBin);
+
+    document.getElementById('toggleLidManualBtn').addEventListener('click', () => {
+      if (state.isLidOpen) closeLid();
+      else openLid('Manual Toggle');
+    });
+
+    fillSlider.addEventListener('input', (e) => {
+      state.fillPercentage = parseFloat(e.target.value);
+      updatePhysics();
+    });
+
+    thresholdSlider.addEventListener('input', (e) => {
+      state.thresholdPercentage = parseFloat(e.target.value);
+      updatePhysics();
+    });
+
+    // Sound Toggle Button
+    soundToggleBtn.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      if (!state.soundEnabled) {
+        stopBuzzerTone();
+        soundIcon.innerText = '🔇';
+        soundLabel.innerText = 'Buzzer Sound: MUTED';
+      } else {
+        soundIcon.innerText = '🔊';
+        soundLabel.innerText = 'Buzzer Sound: ON';
+        if (state.fillPercentage >= state.thresholdPercentage) {
+          playBuzzerTone();
+        }
+      }
+    });
+
+    document.getElementById('clearLogBtn').addEventListener('click', () => {
+      terminal.innerHTML = '';
+    });
+
+    // Tabs Switcher
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const tabId = btn.dataset.tab;
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        document.getElementById(tabId).style.display = 'block';
+
+        if (tabId === 'cloudTab') {
+          setTimeout(drawChart, 50);
+        }
+      });
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        triggerHandApproach();
+      } else if (e.key === 't' || e.key === 'T') {
+        tossTrash();
+      } else if (e.key === 'e' || e.key === 'E') {
+        emptyBin();
+      }
+    });
+
+    // Periodic Background Telemetry Uplink (ThingSpeak Simulation)
+    setInterval(() => {
+      // Push history
+      chartHistory.shift();
+      chartHistory.push(state.fillPercentage);
+      drawChart();
+
+      state.packetsSent++;
+      metricPackets.innerText = state.packetsSent;
+
+      // Small terminal heartbeat
+      if (state.packetsSent % 5 === 0) {
+        logTerminal(`[CLOUD] POST /update HTTP/1.1 -> ThingSpeak [Fill=${Math.round(state.fillPercentage)}%, Distance=${metricDistance.innerText}cm]`);
+      }
+    }, 2000);
+
+    // Initial draw
+    updatePhysics();
+    drawChart();
+  </script>
+</body>
+</html>
