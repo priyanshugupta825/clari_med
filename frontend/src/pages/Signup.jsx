@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { HeartPulse, ArrowRight, Lock, Mail, User, Phone, ShieldCheck, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { HeartPulse, ArrowRight, Lock, Mail, User, Phone, ShieldCheck, AlertCircle, Eye, EyeOff, Loader2, Zap } from 'lucide-react';
 
 export const Signup = () => {
   const [fullName, setFullName] = useState('');
@@ -14,8 +14,13 @@ export const Signup = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { signUp } = useAuth();
+  const { signUp, instantDemoLogin } = useAuth();
   const navigate = useNavigate();
+
+  const handle1ClickDemo = () => {
+    instantDemoLogin('divyata@abdm.gov.in', 'Divyata Sharma', '91-4521-8890-4123');
+    navigate('/dashboard');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,7 +48,7 @@ export const Signup = () => {
     try {
       const metadata = {
         full_name: fullName.trim(),
-        abha_id: abhaId.trim() || undefined,
+        abha_id: abhaId.trim() || '91-4521-8890-4123',
         phone_number: phoneNumber.trim() || undefined,
       };
 
@@ -51,11 +56,7 @@ export const Signup = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Signup error:', err);
-      if (err.message?.includes('User already registered')) {
-        setError('An account with this email already exists. Please sign in instead.');
-      } else {
-        setError(err.message || 'Failed to create your account. Please try again.');
-      }
+      setError(err.message || 'Failed to create your account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -78,9 +79,24 @@ export const Signup = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-xl shadow-slate-200/50 sm:rounded-3xl sm:px-10 border border-brand-100/80 space-y-5">
+      <div className="mt-7 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-7 px-6 shadow-xl shadow-slate-200/50 sm:rounded-3xl sm:px-9 border border-brand-100/80 space-y-5">
           
+          {/* 1-Click Instant Demo Box */}
+          <div className="p-3.5 bg-gradient-to-r from-brand-100/90 via-brand-50 to-indigo-50/80 border border-brand-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-brand-600 fill-brand-600" />
+              <span className="text-xs font-bold text-brand-950">Quick Evaluation?</span>
+            </div>
+            <button
+              type="button"
+              onClick={handle1ClickDemo}
+              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+            >
+              Demo as Divyata ?
+            </button>
+          </div>
+
           {/* Error Alert */}
           {error && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200/80 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
@@ -89,10 +105,10 @@ export const Signup = () => {
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="space-y-3.5" onSubmit={handleSubmit}>
             {/* Full Name */}
             <div>
-              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
                 Full Name *
               </label>
               <div className="relative rounded-xl shadow-2xs">
@@ -104,7 +120,7 @@ export const Signup = () => {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Priya Sharma"
+                  placeholder="e.g. Divyata Sharma"
                   className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-slate-50/40 focus:bg-white"
                 />
               </div>
@@ -112,7 +128,7 @@ export const Signup = () => {
 
             {/* Email Address */}
             <div>
-              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
                 Email Address *
               </label>
               <div className="relative rounded-xl shadow-2xs">
@@ -131,10 +147,10 @@ export const Signup = () => {
               </div>
             </div>
 
-            {/* ABHA ID / Phone Grid */}
+            {/* ABHA ID & Phone */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
                   ABHA ID (Optional)
                 </label>
                 <input
@@ -147,24 +163,22 @@ export const Signup = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
                   Phone (Optional)
                 </label>
-                <div className="relative rounded-xl">
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="block w-full px-3 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-slate-50/40 focus:bg-white text-xs"
-                  />
-                </div>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="block w-full px-3 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-slate-50/40 focus:bg-white text-xs"
+                />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
                 Password *
               </label>
               <div className="relative rounded-xl shadow-2xs">
@@ -183,7 +197,7 @@ export const Signup = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -193,7 +207,7 @@ export const Signup = () => {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-brand-900 uppercase tracking-wider mb-1">
                 Confirm Password *
               </label>
               <div className="relative rounded-xl shadow-2xs">
@@ -213,7 +227,7 @@ export const Signup = () => {
             </div>
 
             {/* Submit Button */}
-            <div className="pt-3">
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
@@ -234,15 +248,8 @@ export const Signup = () => {
             </div>
           </form>
 
-          {/* Divider */}
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-slate-200"></div>
-            <span className="shrink-0 mx-3 text-slate-400 text-xs font-medium">Already registered?</span>
-            <div className="flex-grow border-t border-slate-200"></div>
-          </div>
-
           {/* Sign In Link */}
-          <div className="text-center">
+          <div className="text-center pt-1">
             <Link
               to="/login"
               className="inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-100/60 text-brand-900 font-semibold text-xs transition-colors"
@@ -252,7 +259,7 @@ export const Signup = () => {
           </div>
 
           {/* Security Badge */}
-          <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
+          <div className="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             <span>DPDP & Ayushman Bharat Compliant Data Protection</span>
           </div>
