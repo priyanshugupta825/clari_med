@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { HeartPulse, ArrowRight, Lock, Mail, User, Phone, ShieldCheck, AlertCircle, Eye, EyeOff, Loader2, Zap } from 'lucide-react';
+import { HeartPulse, ArrowRight, Lock, Mail, User, Phone, ShieldCheck, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export const Signup = () => {
   const [fullName, setFullName] = useState('');
@@ -14,13 +14,8 @@ export const Signup = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { signUp, instantDemoLogin } = useAuth();
+  const { signUp } = useAuth();
   const navigate = useNavigate();
-
-  const handle1ClickDemo = () => {
-    instantDemoLogin('divyata@abdm.gov.in', 'Divyata Sharma', '91-4521-8890-4123');
-    navigate('/dashboard');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +43,7 @@ export const Signup = () => {
     try {
       const metadata = {
         full_name: fullName.trim(),
-        abha_id: abhaId.trim() || '91-4521-8890-4123',
+        abha_id: abhaId.trim() || undefined,
         phone_number: phoneNumber.trim() || undefined,
       };
 
@@ -80,23 +75,8 @@ export const Signup = () => {
       </div>
 
       <div className="mt-7 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-7 px-6 shadow-xl shadow-slate-200/50 sm:rounded-3xl sm:px-9 border border-brand-100/80 space-y-5">
+        <div className="bg-white py-8 px-6 shadow-xl shadow-slate-200/50 sm:rounded-3xl sm:px-9 border border-brand-100/80 space-y-5">
           
-          {/* 1-Click Instant Demo Box */}
-          <div className="p-3.5 bg-gradient-to-r from-brand-100/90 via-brand-50 to-indigo-50/80 border border-brand-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-brand-600 fill-brand-600" />
-              <span className="text-xs font-bold text-brand-950">Quick Evaluation?</span>
-            </div>
-            <button
-              type="button"
-              onClick={handle1ClickDemo}
-              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
-            >
-              Demo as Divyata &rarr;
-            </button>
-          </div>
-
           {/* Error Alert */}
           {error && (
             <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200/80 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
@@ -120,7 +100,7 @@ export const Signup = () => {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Divyata Sharma"
+                  placeholder="e.g. Rahul Verma"
                   className="block w-full pl-10 pr-3 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-slate-50/40 focus:bg-white"
                 />
               </div>
@@ -249,17 +229,17 @@ export const Signup = () => {
           </form>
 
           {/* Sign In Link */}
-          <div className="text-center pt-1">
+          <div className="text-center pt-2">
             <Link
               to="/login"
               className="inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-100/60 text-brand-900 font-semibold text-xs transition-colors"
             >
-              Sign In to Existing Account &rarr;
+              Already have an account? Sign In &rarr;
             </Link>
           </div>
 
           {/* Security Badge */}
-          <div className="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
+          <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             <span>DPDP & Ayushman Bharat Compliant Data Protection</span>
           </div>

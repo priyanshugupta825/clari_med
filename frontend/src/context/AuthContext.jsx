@@ -11,16 +11,17 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
-    // 1. Check local storage session first for instant zero-latency load
-    const savedUser = localStorage.getItem('demo_user');
+    // 1. Check local storage session for fast load
+    const savedUser = localStorage.getItem('clarimed_user') || localStorage.getItem('demo_user');
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
         if (parsed && parsed.id) {
           setUser(parsed);
-          setSession({ access_token: 'demo-token-12345', user: parsed });
+          setSession({ access_token: 'auth-token-' + parsed.id, user: parsed });
         }
       } catch {
+        localStorage.removeItem('clarimed_user');
         localStorage.removeItem('demo_user');
       }
     }
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
         if (session?.user && mounted) {
           setSession(session);
           setUser(session.user);
-          localStorage.setItem('demo_user', JSON.stringify({
+          localStorage.setItem('clarimed_user', JSON.stringify({
             id: session.user.id,
             email: session.user.email,
             user_metadata: session.user.user_metadata || {},
@@ -49,11 +50,16 @@ export const AuthProvider = ({ children }) => {
           if (session?.user) {
             setSession(session);
             setUser(session.user);
-            localStorage.setItem('demo_user', JSON.stringify({
+            localStorage.setItem('clarimed_user', JSON.stringify({
               id: session.user.id,
               email: session.user.email,
               user_metadata: session.user.user_metadata || {},
             }));
+          } else if (_event === 'SIGNED_OUT') {
+            setUser(null);
+            setSession(null);
+            localStorage.removeItem('clarimed_user');
+            localStorage.removeItem('demo_user');
           }
           setLoading(false);
         }
@@ -72,27 +78,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const instantDemoLogin = (
-    email = 'divyata@abdm.gov.in',
-    fullName = 'Divyata Sharma',
-    abhaId = '91-4521-8890-4123'
-  ) => {
-    const demoUser = {
-      id: 'demo-user-123',
-      email,
-      user_metadata: {
-        full_name: fullName,
-        abha_id: abhaId,
-        blood_group: 'O+',
-        phone_number: '+91 98765 43210',
-      },
-    };
-    localStorage.setItem('demo_user', JSON.stringify(demoUser));
-    setUser(demoUser);
-    setSession({ access_token: 'demo-token-12345', user: demoUser });
-    return { data: { user: demoUser, session: { access_token: 'demo-token-12345' } }, error: null };
-  };
-
   const signIn = async (email, password) => {
     const trimmedEmail = email.trim();
 
@@ -103,10 +88,14 @@ export const AuthProvider = ({ children }) => {
           password,
         });
 
-        if (res.data?.user && !res.error) {
+        if (res.error) {
+          throw res.error;
+        }
+
+        if (res.data?.user) {
           setUser(res.data.user);
           setSession(res.data.session);
-          localStorage.setItem('demo_user', JSON.stringify({
+          localStorage.setItem('clarimed_user', JSON.stringify({
             id: res.data.user.id,
             email: res.data.user.email,
             user_metadata: res.data.user.user_metadata || {},
@@ -114,17 +103,32 @@ export const AuthProvider = ({ children }) => {
           return res.data;
         }
       } catch (err) {
-        console.warn('Supabase signin note, activating resilient login:', err);
+        // If it's an explicit invalid credentials error, rethrow so the user knows
+        if (err.message && (err.message.toLowerCase().includes('invalid') || err.message.toLowerCase().includes('confirm'))) {
+          throw err;
+        }
+        console.warn('Supabase signin note, fallback local session:', err);
       }
     }
 
-    // Resilient fallback: seamlessly log in with entered credentials
-    const cleanName = trimmedEmail.toLowerCase().includes('divyata')
-      ? 'Divyata Sharma'
-      : trimmedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Patient User';
+    // Local authentication fallback for unconfigured environments
+    const cleanName = trimmedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Patient User';
     const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
     
-    return instantDemoLogin(trimmedEmail, formattedName, '91-4521-8890-4123');
+    const localUser = {
+      id: 'usr_' + Math.random().toString(36).substring(2, 10),
+      email: trimmedEmail,
+      user_metadata: {
+        full_name: formattedName,
+        abha_id: '91-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000),
+        blood_group: 'O+',
+      },
+    };
+
+    localStorage.setItem('clarimed_user', JSON.stringify(localUser));
+    setUser(localUser);
+    setSession({ access_token: 'auth-token-' + localUser.id, user: localUser });
+    return { data: { user: localUser, session: { access_token: 'auth-token-' + localUser.id } }, error: null };
   };
 
   const signUp = async (email, password, metadata = {}) => {
@@ -138,10 +142,14 @@ export const AuthProvider = ({ children }) => {
           options: { data: metadata },
         });
 
-        if (res.data?.user && !res.error) {
+        if (res.error) {
+          throw res.error;
+        }
+
+        if (res.data?.user) {
           setUser(res.data.user);
           setSession(res.data.session);
-          localStorage.setItem('demo_user', JSON.stringify({
+          localStorage.setItem('clarimed_user', JSON.stringify({
             id: res.data.user.id,
             email: res.data.user.email,
             user_metadata: metadata,
@@ -149,12 +157,27 @@ export const AuthProvider = ({ children }) => {
           return res.data;
         }
       } catch (err) {
-        console.warn('Supabase signup note, activating resilient registration:', err);
+        if (err.message && err.message.toLowerCase().includes('already registered')) {
+          throw err;
+        }
+        console.warn('Supabase signup note, fallback local registration:', err);
       }
     }
 
-    const fullName = metadata.full_name || (trimmedEmail.toLowerCase().includes('divyata') ? 'Divyata Sharma' : 'Patient User');
-    return instantDemoLogin(trimmedEmail, fullName, metadata.abha_id || '91-4521-8890-4123');
+    const localUser = {
+      id: 'usr_' + Math.random().toString(36).substring(2, 10),
+      email: trimmedEmail,
+      user_metadata: {
+        full_name: metadata.full_name || trimmedEmail.split('@')[0],
+        abha_id: metadata.abha_id || '91-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000),
+        phone_number: metadata.phone_number || undefined,
+      },
+    };
+
+    localStorage.setItem('clarimed_user', JSON.stringify(localUser));
+    setUser(localUser);
+    setSession({ access_token: 'auth-token-' + localUser.id, user: localUser });
+    return { data: { user: localUser, session: { access_token: 'auth-token-' + localUser.id } }, error: null };
   };
 
   const signOut = async () => {
@@ -165,6 +188,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.warn('Signout note:', err);
     } finally {
+      localStorage.removeItem('clarimed_user');
       localStorage.removeItem('demo_user');
       setUser(null);
       setSession(null);
@@ -180,7 +204,6 @@ export const AuthProvider = ({ children }) => {
         signIn,
         signUp,
         signOut,
-        instantDemoLogin,
         isAuthenticated: !!user,
       }}
     >

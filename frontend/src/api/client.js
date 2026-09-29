@@ -31,8 +31,8 @@ apiClient.interceptors.request.use(
           config.headers['X-User-Email'] = supabaseUser.email;
         }
       } else {
-        // Priority 2: Saved user / demo session
-        const savedUser = localStorage.getItem('demo_user');
+        // Priority 2: Saved user session
+        const savedUser = localStorage.getItem('clarimed_user') || localStorage.getItem('demo_user');
         if (savedUser) {
           try {
             const parsed = JSON.parse(savedUser);
