@@ -60,7 +60,7 @@ export const Login = () => {
           Welcome to ClariMed
         </h2>
         <p className="mt-1.5 text-center text-xs sm:text-sm text-slate-500 font-medium max-w-xs mx-auto">
-          Unified AI-powered Personal Health Record ecosystem for India\'s ABDM
+          Unified AI-powered Personal Health Record ecosystem for India's ABDM
         </p>
       </div>
 
@@ -92,7 +92,7 @@ export const Login = () => {
               className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all duration-200 cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
-              <span>1-Click Demo Login as Divyata ?</span>
+              <span>1-Click Demo Login as Divyata &rarr;</span>
             </button>
           </div>
 
@@ -190,7 +190,7 @@ export const Login = () => {
               to="/signup"
               className="inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-100/60 text-brand-900 font-semibold text-xs transition-colors"
             >
-              Create a New Patient Account ?
+              Create a New Patient Account &rarr;
             </Link>
           </div>
 

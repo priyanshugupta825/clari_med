@@ -93,7 +93,7 @@ export const Signup = () => {
               onClick={handle1ClickDemo}
               className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
             >
-              Demo as Divyata ?
+              Demo as Divyata &rarr;
             </button>
           </div>
 
@@ -254,7 +254,7 @@ export const Signup = () => {
               to="/login"
               className="inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-100/60 text-brand-900 font-semibold text-xs transition-colors"
             >
-              Sign In to Existing Account ?
+              Sign In to Existing Account &rarr;
             </Link>
           </div>
 
