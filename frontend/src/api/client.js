@@ -24,11 +24,17 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // Priority 1: Supabase Authenticated User ID
+      // Priority 1: Supabase Authenticated User
       if (supabaseUser?.id) {
         config.headers['X-User-Id'] = supabaseUser.id;
         if (supabaseUser.email) {
           config.headers['X-User-Email'] = supabaseUser.email;
+        }
+        if (supabaseUser.user_metadata?.full_name) {
+          config.headers['X-User-Name'] = supabaseUser.user_metadata.full_name;
+        }
+        if (supabaseUser.user_metadata?.abha_id) {
+          config.headers['X-User-Abha'] = supabaseUser.user_metadata.abha_id;
         }
       } else {
         // Priority 2: Saved user session
@@ -41,6 +47,12 @@ apiClient.interceptors.request.use(
             }
             if (parsed.email) {
               config.headers['X-User-Email'] = parsed.email;
+            }
+            if (parsed.user_metadata?.full_name) {
+              config.headers['X-User-Name'] = parsed.user_metadata.full_name;
+            }
+            if (parsed.user_metadata?.abha_id) {
+              config.headers['X-User-Abha'] = parsed.user_metadata.abha_id;
             }
           } catch {
             config.headers['X-User-Id'] = 'demo-user-123';

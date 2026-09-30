@@ -25,7 +25,8 @@ router = APIRouter(prefix="/emergency", tags=["Emergency QR Mode"])
 
 def _get_or_seed_emergency_info(db: Session, user_id: str) -> EmergencyInfo:
     """
-    Retrieves or seeds realistic life-saving emergency medical data for the patient.
+    Retrieves or creates clean emergency medical data for the specific patient.
+    Ensures data isolation across different patients.
     """
     emg = db.query(EmergencyInfo).filter(EmergencyInfo.user_id == user_id).first()
     if not emg:
@@ -33,45 +34,52 @@ def _get_or_seed_emergency_info(db: Session, user_id: str) -> EmergencyInfo:
             id=str(uuid.uuid4()),
             user_id=user_id,
             blood_group="O+",
-            allergies=[
-                "Penicillin (Severe Anaphylaxis Risk)",
-                "NSAIDs / Aspirin (Gastric Irritation)",
-            ],
-            chronic_conditions=[
-                "Essential Hypertension (Controlled)",
-                "Pre-diabetes (Borderline)",
-            ],
-            emergency_contacts=[
-                {
-                    "name": "Sunita Kumar",
-                    "relation": "Spouse",
-                    "phone": "+91 98765 43210",
-                },
-                {
-                    "name": "Dr. Arun Sharma",
-                    "relation": "Cardiologist (Max Hospital)",
-                    "phone": "+91 98111 22334",
-                },
-            ],
-            organ_donor=True,
-            critical_notes="Pacemaker / Stent: None. Bleeding risk on high doses.",
+            allergies=[],
+            chronic_conditions=[],
+            emergency_contacts=[],
+            organ_donor=False,
+            critical_notes="",
             is_publicly_visible_via_qr=True,
         )
-        db.add(emg)
-        db.commit()
-        db.refresh(emg)
+        try:
+            db.add(emg)
+            db.commit()
+            db.refresh(emg)
+        except Exception:
+            db.rollback()
+            emg = db.query(EmergencyInfo).filter(EmergencyInfo.user_id == user_id).first()
+            if not emg:
+                emg = EmergencyInfo(
+                    id=str(uuid.uuid4()),
+                    user_id=user_id,
+                    blood_group="O+",
+                    allergies=[],
+                    chronic_conditions=[],
+                    emergency_contacts=[],
+                    organ_donor=False,
+                    critical_notes="",
+                    is_publicly_visible_via_qr=True,
+                )
+                db.add(emg)
+                db.commit()
+                db.refresh(emg)
     return emg
 
 
 @router.post("/generate-token", response_model=EmergencyTokenGenerateResponse)
 def generate_emergency_token(
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
     """
-    Generates a secure, 24-hour time-limited Emergency QR access token.
+    Generates a secure, 24-hour time-limited Emergency QR access token for the logged-in patient.
     """
-    _get_or_create_user(db, user_id)
+    user_name = request.headers.get("x-user-name")
+    user_email = request.headers.get("x-user-email")
+    user_abha = request.headers.get("x-user-abha")
+
+    _get_or_create_user(db, user_id, email=user_email, full_name=user_name, abha_id=user_abha)
     _get_or_seed_emergency_info(db, user_id)
 
     # Deactivate older tokens for this user
@@ -80,8 +88,9 @@ def generate_emergency_token(
         EmergencyQRToken.is_active == True,
     ).update({"is_active": False})
 
-    # Generate fresh cryptographically secure token
-    token_str = f"emg_{secrets.token_urlsafe(20)}"
+    # Generate fresh cryptographically secure token tied to this patient
+    clean_uid = "".join(c for c in user_id if c.isalnum())[:8] or "usr"
+    token_str = f"emg_{clean_uid}_{secrets.token_urlsafe(16)}"
     expires_at = datetime.utcnow() + timedelta(hours=24)
 
     token_record = EmergencyQRToken(
@@ -117,8 +126,7 @@ def get_public_emergency_card(
     PUBLIC ENDPOINT (No authentication required).
     1. Validates token validity and 24-hour expiration.
     2. Logs access timestamp, IP address, and User-Agent to access_logs for patient audit trail.
-    3. STRICT PRIVACY GUARD: Returns ONLY critical emergency data (blood group, allergies,
-       chronic conditions, active meds name+dosage, emergency contacts).
+    3. STRICT PRIVACY GUARD: Returns ONLY the specific patient's critical emergency data.
     """
     token_rec = (
         db.query(EmergencyQRToken)
@@ -161,11 +169,11 @@ def get_public_emergency_card(
     db.add(log_entry)
     db.commit()
 
-    # Query Patient Info
+    # Query Specific Patient Info
     user = db.query(User).filter(User.id == token_rec.user_id).first()
     emg_info = _get_or_seed_emergency_info(db, token_rec.user_id)
 
-    # Query Active Medicines ONLY (No full records or inactive history)
+    # Query Active Medicines for THIS user ONLY
     active_meds = (
         db.query(Medicine)
         .filter(Medicine.user_id == token_rec.user_id, Medicine.is_active == True)
@@ -194,13 +202,13 @@ def get_public_emergency_card(
         success=True,
         patient_name=user.full_name if user else "Patient",
         abha_id=user.abha_id if user else None,
-        blood_group=emg_info.blood_group,
+        blood_group=emg_info.blood_group or "O+",
         allergies=emg_info.allergies or [],
         chronic_conditions=emg_info.chronic_conditions or [],
         active_medicines=med_list,
         emergency_contacts=contact_list,
-        organ_donor=emg_info.organ_donor,
-        critical_notes=emg_info.critical_notes,
+        organ_donor=emg_info.organ_donor or False,
+        critical_notes=emg_info.critical_notes or "",
         expires_at=token_rec.expires_at,
         token_valid=True,
     )
@@ -208,14 +216,21 @@ def get_public_emergency_card(
 
 @router.get("/profile")
 def get_emergency_profile(
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
     """
     Returns the patient's own emergency info profile for editing/viewing.
+    Ensures an active unique QR token exists.
     """
-    _get_or_create_user(db, user_id)
+    user_name = request.headers.get("x-user-name")
+    user_email = request.headers.get("x-user-email")
+    user_abha = request.headers.get("x-user-abha")
+
+    _get_or_create_user(db, user_id, email=user_email, full_name=user_name, abha_id=user_abha)
     emg = _get_or_seed_emergency_info(db, user_id)
+
     active_token = (
         db.query(EmergencyQRToken)
         .filter(
@@ -226,6 +241,24 @@ def get_emergency_profile(
         .order_by(EmergencyQRToken.created_at.desc())
         .first()
     )
+
+    # If no active token exists, generate one automatically for this patient
+    if not active_token:
+        clean_uid = "".join(c for c in user_id if c.isalnum())[:8] or "usr"
+        token_str = f"emg_{clean_uid}_{secrets.token_urlsafe(16)}"
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+
+        active_token = EmergencyQRToken(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            token=token_str,
+            is_active=True,
+            expires_at=expires_at,
+            access_count=0,
+        )
+        db.add(active_token)
+        db.commit()
+        db.refresh(active_token)
 
     return {
         "emergency_info": emg,
@@ -238,13 +271,18 @@ def get_emergency_profile(
 @router.put("/profile")
 def update_emergency_profile(
     payload: EmergencyProfileUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
     """
     Updates the patient's blood group, allergies, chronic conditions, and emergency contacts.
     """
-    _get_or_create_user(db, user_id)
+    user_name = request.headers.get("x-user-name")
+    user_email = request.headers.get("x-user-email")
+    user_abha = request.headers.get("x-user-abha")
+
+    _get_or_create_user(db, user_id, email=user_email, full_name=user_name, abha_id=user_abha)
     emg = _get_or_seed_emergency_info(db, user_id)
 
     if payload.blood_group is not None:

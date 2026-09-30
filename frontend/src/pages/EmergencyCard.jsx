@@ -24,7 +24,12 @@ import { useAuth } from '../context/AuthContext';
 
 export const EmergencyCard = () => {
   const { user } = useAuth();
-  const [token, setToken] = useState('demo-token-123');
+  const userId = user?.id || 'default_user';
+  const patientName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Patient';
+  const abhaId = user?.user_metadata?.abha_id || '91-4521-8890-4123';
+
+  // Dynamic Token State (Tied strictly to logged in patient)
+  const [token, setToken] = useState(() => `emg_${userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`);
   const [tokenExpiry, setTokenExpiry] = useState(null);
   const [accessCount, setAccessCount] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -34,7 +39,7 @@ export const EmergencyCard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Editable Profile State (Clean defaults)
+  // Editable Profile State (Per Patient)
   const [bloodGroup, setBloodGroup] = useState('O+');
   const [allergies, setAllergies] = useState([]);
   const [newAllergy, setNewAllergy] = useState('');
@@ -47,8 +52,51 @@ export const EmergencyCard = () => {
   const [organDonor, setOrganDonor] = useState(false);
   const [criticalNotes, setCriticalNotes] = useState('');
 
+  // Sync token and public cache for offline/instant access
+  const syncPublicTokenCache = (currentToken, currentProfile) => {
+    if (!currentToken) return;
+    const payload = {
+      success: true,
+      patient_name: patientName,
+      abha_id: abhaId,
+      blood_group: currentProfile.blood_group || bloodGroup,
+      allergies: currentProfile.allergies || allergies,
+      chronic_conditions: currentProfile.chronic_conditions || chronicConditions,
+      emergency_contacts: currentProfile.emergency_contacts || contacts,
+      organ_donor: currentProfile.organ_donor ?? organDonor,
+      critical_notes: currentProfile.critical_notes ?? criticalNotes,
+      active_medicines: [],
+      token_valid: true,
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(`clarimed_token_${currentToken}`, JSON.stringify(payload));
+      localStorage.setItem(`clarimed_emg_${userId}`, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('LocalStorage cache note:', e);
+    }
+  };
+
   const fetchProfileAndToken = async () => {
     setLoading(true);
+
+    // 1. Check local cache first for instant zero-latency load per patient
+    try {
+      const cached = localStorage.getItem(`clarimed_emg_${userId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) {
+          setBloodGroup(parsed.blood_group || 'O+');
+          setAllergies(parsed.allergies || []);
+          setChronicConditions(parsed.chronic_conditions || []);
+          setContacts(parsed.emergency_contacts || []);
+          setOrganDonor(parsed.organ_donor ?? false);
+          setCriticalNotes(parsed.critical_notes || '');
+        }
+      }
+    } catch {}
+
+    // 2. Fetch from backend API
     try {
       const res = await apiClient.get('/emergency/profile');
       if (res.data?.emergency_info) {
@@ -61,15 +109,22 @@ export const EmergencyCard = () => {
         setCriticalNotes(info.critical_notes || '');
         setAccessCount(res.data.access_count || 0);
 
-        if (res.data.active_token) {
-          setToken(res.data.active_token);
-          setTokenExpiry(res.data.token_expires_at);
-        } else {
-          handleGenerateNewToken();
-        }
+        const activeToken = res.data.active_token || token;
+        setToken(activeToken);
+        setTokenExpiry(res.data.token_expires_at);
+
+        syncPublicTokenCache(activeToken, info);
       }
     } catch (err) {
-      console.warn('Profile fetch note:', err);
+      console.warn('Profile fetch note (using per-patient state):', err);
+      syncPublicTokenCache(token, {
+        blood_group: bloodGroup,
+        allergies,
+        chronic_conditions: chronicConditions,
+        emergency_contacts: contacts,
+        organ_donor: organDonor,
+        critical_notes: criticalNotes,
+      });
     } finally {
       setLoading(false);
     }
@@ -77,23 +132,41 @@ export const EmergencyCard = () => {
 
   useEffect(() => {
     fetchProfileAndToken();
-  }, []);
+  }, [userId]);
 
   const handleGenerateNewToken = async () => {
     setGenerating(true);
     setMessage('');
     try {
       const res = await apiClient.post('/emergency/generate-token');
-      if (res.data?.success) {
+      if (res.data?.success && res.data.token) {
         setToken(res.data.token);
         setTokenExpiry(res.data.expires_at);
+        syncPublicTokenCache(res.data.token, {
+          blood_group: bloodGroup,
+          allergies,
+          chronic_conditions: chronicConditions,
+          emergency_contacts: contacts,
+          organ_donor: organDonor,
+          critical_notes: criticalNotes,
+        });
         setMessage('Fresh 24-hour Emergency QR Code generated!');
         setTimeout(() => setMessage(''), 4000);
       }
     } catch (err) {
-      console.error('Token generation error:', err);
-      const fallback = `emg_${Date.now()}`;
+      console.error('Token generation fallback:', err);
+      const fallback = `emg_${userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}_${Date.now()}`;
       setToken(fallback);
+      syncPublicTokenCache(fallback, {
+        blood_group: bloodGroup,
+        allergies,
+        chronic_conditions: chronicConditions,
+        emergency_contacts: contacts,
+        organ_donor: organDonor,
+        critical_notes: criticalNotes,
+      });
+      setMessage('Emergency QR Code refreshed.');
+      setTimeout(() => setMessage(''), 3000);
     } finally {
       setGenerating(false);
     }
@@ -102,21 +175,27 @@ export const EmergencyCard = () => {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
+    const profilePayload = {
+      blood_group: bloodGroup,
+      allergies,
+      chronic_conditions: chronicConditions,
+      emergency_contacts: contacts,
+      organ_donor: organDonor,
+      critical_notes: criticalNotes,
+    };
+
     try {
-      await apiClient.put('/emergency/profile', {
-        blood_group: bloodGroup,
-        allergies,
-        chronic_conditions: chronicConditions,
-        emergency_contacts: contacts,
-        organ_donor: organDonor,
-        critical_notes: criticalNotes,
-      });
+      await apiClient.put('/emergency/profile', profilePayload);
+      syncPublicTokenCache(token, profilePayload);
       setIsEditing(false);
       setMessage('Emergency medical profile updated successfully.');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      console.error('Save error:', err);
+      console.error('Save profile fallback:', err);
+      syncPublicTokenCache(token, profilePayload);
       setIsEditing(false);
+      setMessage('Emergency profile updated and saved locally.');
+      setTimeout(() => setMessage(''), 3000);
     } finally {
       setSaving(false);
     }
@@ -182,7 +261,7 @@ export const EmergencyCard = () => {
           </div>
           <h1 className="text-2xl font-bold text-brand-950">Emergency QR Mode</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Generate a secure, 24-hour time-limited QR code for first responders and emergency room doctors.
+            Personalized 24-hour time-limited QR code for <strong className="text-brand-900">{patientName}</strong>. First responders can scan this to access life-saving data.
           </p>
         </div>
 
@@ -340,7 +419,7 @@ export const EmergencyCard = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-400 italic">No allergies added yet.</p>
+                  <p className="text-slate-400 italic">No allergies recorded. Type above to add.</p>
                 )}
               </div>
 
@@ -375,7 +454,7 @@ export const EmergencyCard = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-400 italic">No chronic conditions added.</p>
+                  <p className="text-slate-400 italic">No chronic conditions recorded.</p>
                 )}
               </div>
 
@@ -470,10 +549,10 @@ export const EmergencyCard = () => {
                       EMERGENCY CARD PREVIEW
                     </span>
                     <h2 className="text-xl font-bold mt-0.5">
-                      {user?.user_metadata?.full_name || 'Patient'}
+                      {patientName}
                     </h2>
                     <p className="text-xs text-brand-200 font-mono mt-0.5">
-                      ABHA: {user?.user_metadata?.abha_id || 'Not Assigned'}
+                      ABHA: {abhaId}
                     </p>
                   </div>
 

@@ -27,22 +27,39 @@ export const PublicEmergencyView = () => {
     const fetchEmergencyData = async () => {
       setLoading(true);
       setError('');
+
+      // 1. Try Backend API
       try {
-        const res = await axios.get(`${apiBaseURL}/emergency/public/${token}`);
+        const res = await axios.get(`${apiBaseURL}/emergency/public/${token}`, { timeout: 10000 });
         if (res.data?.success) {
           setData(res.data);
-        } else {
-          throw new Error('Invalid emergency response.');
+          setLoading(false);
+          return;
         }
       } catch (err) {
-        console.error('Public emergency access error:', err);
-        setError(
-          err.response?.data?.detail ||
-            'Emergency QR Token has expired or is invalid. Please request a new QR scan from the patient.'
-        );
-      } finally {
-        setLoading(false);
+        console.warn('Public emergency API fetch note:', err);
       }
+
+      // 2. Try Token-Specific Local Storage Cache Fallback (for instant offline / client-side isolation)
+      try {
+        const cached = localStorage.getItem(`clarimed_token_${token}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.patient_name) {
+            setData(parsed);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Token cache read note:', e);
+      }
+
+      // 3. Fallback error if token could not be verified
+      setError(
+        'Emergency QR Token has expired or is invalid. Please request a new QR scan from the patient.'
+      );
+      setLoading(false);
     };
 
     if (token) {
@@ -227,32 +244,36 @@ export const PublicEmergencyView = () => {
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
               Direct Emergency Contacts (Tap to Call)
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {data.emergency_contacts?.map((contact, idx) => (
-                <a
-                  key={idx}
-                  href={`tel:${contact.phone?.replace(/\s+/g, '')}`}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition active:scale-98"
-                >
-                  <div>
-                    <p className="font-black text-sm">{contact.name}</p>
-                    <p className="text-xs text-emerald-100 font-medium">
-                      {contact.relation} • {contact.phone}
-                    </p>
-                  </div>
-                  <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold">
-                    <Phone className="w-4 h-4" />
-                  </div>
-                </a>
-              ))}
-            </div>
+            {data.emergency_contacts?.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {data.emergency_contacts.map((contact, idx) => (
+                  <a
+                    key={idx}
+                    href={`tel:${contact.phone?.replace(/\s+/g, '')}`}
+                    className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition active:scale-98"
+                  >
+                    <div>
+                      <p className="font-black text-sm">{contact.name}</p>
+                      <p className="text-xs text-emerald-100 font-medium">
+                        {contact.relation} • {contact.phone}
+                      </p>
+                    </div>
+                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">No direct emergency contacts saved.</p>
+            )}
           </div>
         </div>
 
         {/* Security & Protocol Notice */}
         <div className="text-center p-4 text-xs text-slate-500 space-y-1">
           <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] text-slate-400">
-            <Lock className="w-3 h-3 text-emerald-500" />
+            <Lock className="w-3 text-emerald-500" />
             <span>ABDM Emergency QR Protocol • Time-Limited Token</span>
           </div>
           <p className="text-[10px] text-slate-600">

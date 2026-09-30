@@ -49,8 +49,8 @@ def create_doctor_consent_share(
     user = _get_or_create_user(db, user_id)
     emg_info = _get_or_seed_emergency_info(db, user_id)
 
-    # Seed demo encounters if user is empty
-    if db.query(ExtractedRecord).filter(ExtractedRecord.user_id == user_id).count() == 0:
+    # Only seed demo encounters if explicitly demo user
+    if db.query(ExtractedRecord).filter(ExtractedRecord.user_id == user_id).count() == 0 and user_id in ["demo-user-123", "default_user"]:
         _seed_demo_timeline(db, user_id)
 
     # Fetch patient's active records to generate summary

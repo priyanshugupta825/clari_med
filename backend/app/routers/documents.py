@@ -35,18 +35,27 @@ ALLOWED_MIME_TYPES = {
 }
 
 
-def _get_or_create_user(db: Session, user_id: str, email: Optional[str] = None) -> User:
+def _get_or_create_user(
+    db: Session,
+    user_id: str,
+    email: Optional[str] = None,
+    full_name: Optional[str] = None,
+    abha_id: Optional[str] = None,
+) -> User:
     """
-    Ensures a matching user row exists in the database for foreign key integrity.
+    Ensures a matching user row exists in the database for foreign key integrity
+    and stays synchronized with the user's registered name and ABHA ID.
     """
     user = db.query(User).filter(User.id == user_id).first()
+    clean_suffix = "".join(c for c in user_id if c.isalnum())[:10] or "usr"
+    default_abha = f"91-{clean_suffix[:4]}-{clean_suffix[4:8] or '4123'}-{clean_suffix[8:12] or '8890'}"
+    
     if not user:
-        clean_suffix = "".join(c for c in user_id if c.isalnum())[:10] or "demo"
         user = User(
             id=user_id,
-            email=email or f"patient_{clean_suffix}_{uuid.uuid4().hex[:6]}@abdm.gov.in",
-            full_name="Patient User",
-            abha_id=f"91-4521-{clean_suffix[:4]}-{clean_suffix[4:8] or '4123'}",
+            email=email or f"patient_{clean_suffix}@abdm.gov.in",
+            full_name=full_name or "Patient User",
+            abha_id=abha_id or default_abha,
         )
         try:
             db.add(user)
@@ -58,12 +67,31 @@ def _get_or_create_user(db: Session, user_id: str, email: Optional[str] = None) 
             if not user:
                 user = User(
                     id=user_id,
-                    email=f"patient_{uuid.uuid4().hex[:12]}@abdm.gov.in",
-                    full_name="Patient User",
+                    email=email or f"patient_{clean_suffix}@abdm.gov.in",
+                    full_name=full_name or "Patient User",
+                    abha_id=abha_id or default_abha,
                 )
                 db.add(user)
                 db.commit()
                 db.refresh(user)
+    else:
+        # Update user name / abha if provided and was default
+        updated = False
+        if full_name and (user.full_name == "Patient User" or not user.full_name):
+            user.full_name = full_name
+            updated = True
+        if abha_id and (not user.abha_id or user.abha_id.startswith("91-4521-demo")):
+            user.abha_id = abha_id
+            updated = True
+        if email and not user.email:
+            user.email = email
+            updated = True
+        if updated:
+            try:
+                db.commit()
+                db.refresh(user)
+            except Exception:
+                db.rollback()
     return user
 
 
