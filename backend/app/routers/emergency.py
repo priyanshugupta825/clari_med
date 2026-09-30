@@ -33,7 +33,7 @@ def _get_or_seed_emergency_info(db: Session, user_id: str) -> EmergencyInfo:
         emg = EmergencyInfo(
             id=str(uuid.uuid4()),
             user_id=user_id,
-            blood_group="O+",
+            blood_group=None,
             allergies=[],
             chronic_conditions=[],
             emergency_contacts=[],
@@ -52,7 +52,7 @@ def _get_or_seed_emergency_info(db: Session, user_id: str) -> EmergencyInfo:
                 emg = EmergencyInfo(
                     id=str(uuid.uuid4()),
                     user_id=user_id,
-                    blood_group="O+",
+                    blood_group=None,
                     allergies=[],
                     chronic_conditions=[],
                     emergency_contacts=[],
@@ -202,7 +202,7 @@ def get_public_emergency_card(
         success=True,
         patient_name=user.full_name if user else "Patient",
         abha_id=user.abha_id if user else None,
-        blood_group=emg_info.blood_group or "O+",
+        blood_group=emg_info.blood_group,
         allergies=emg_info.allergies or [],
         chronic_conditions=emg_info.chronic_conditions or [],
         active_medicines=med_list,

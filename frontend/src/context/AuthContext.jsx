@@ -121,7 +121,6 @@ export const AuthProvider = ({ children }) => {
       user_metadata: {
         full_name: formattedName,
         abha_id: '91-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000),
-        blood_group: 'O+',
       },
     };
 

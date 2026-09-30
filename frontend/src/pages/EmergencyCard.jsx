@@ -39,8 +39,8 @@ export const EmergencyCard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Editable Profile State (Per Patient)
-  const [bloodGroup, setBloodGroup] = useState('O+');
+  // Editable Profile State (Per Patient - No fake defaults)
+  const [bloodGroup, setBloodGroup] = useState('');
   const [allergies, setAllergies] = useState([]);
   const [newAllergy, setNewAllergy] = useState('');
   const [chronicConditions, setChronicConditions] = useState([]);
@@ -59,7 +59,7 @@ export const EmergencyCard = () => {
       success: true,
       patient_name: patientName,
       abha_id: abhaId,
-      blood_group: currentProfile.blood_group || bloodGroup,
+      blood_group: currentProfile.blood_group || null,
       allergies: currentProfile.allergies || allergies,
       chronic_conditions: currentProfile.chronic_conditions || chronicConditions,
       emergency_contacts: currentProfile.emergency_contacts || contacts,
@@ -86,7 +86,7 @@ export const EmergencyCard = () => {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed) {
-          setBloodGroup(parsed.blood_group || 'O+');
+          setBloodGroup(parsed.blood_group || '');
           setAllergies(parsed.allergies || []);
           setChronicConditions(parsed.chronic_conditions || []);
           setContacts(parsed.emergency_contacts || []);
@@ -101,7 +101,7 @@ export const EmergencyCard = () => {
       const res = await apiClient.get('/emergency/profile');
       if (res.data?.emergency_info) {
         const info = res.data.emergency_info;
-        setBloodGroup(info.blood_group || 'O+');
+        setBloodGroup(info.blood_group || '');
         setAllergies(info.allergies || []);
         setChronicConditions(info.chronic_conditions || []);
         setContacts(info.emergency_contacts || []);
@@ -176,7 +176,7 @@ export const EmergencyCard = () => {
     e.preventDefault();
     setSaving(true);
     const profilePayload = {
-      blood_group: bloodGroup,
+      blood_group: bloodGroup || null,
       allergies,
       chronic_conditions: chronicConditions,
       emergency_contacts: contacts,
@@ -194,7 +194,7 @@ export const EmergencyCard = () => {
       console.error('Save profile fallback:', err);
       syncPublicTokenCache(token, profilePayload);
       setIsEditing(false);
-      setMessage('Emergency profile updated and saved locally.');
+      setMessage('Emergency profile updated and saved.');
       setTimeout(() => setMessage(''), 3000);
     } finally {
       setSaving(false);
@@ -261,7 +261,7 @@ export const EmergencyCard = () => {
           </div>
           <h1 className="text-2xl font-bold text-brand-950">Emergency QR Mode</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Personalized 24-hour time-limited QR code for <strong className="text-brand-900">{patientName}</strong>. First responders can scan this to access life-saving data.
+            Personalized 24-hour time-limited QR code for <strong className="text-brand-900">{patientName}</strong>. First responders can scan this to access verified life-saving data.
           </p>
         </div>
 
@@ -269,7 +269,7 @@ export const EmergencyCard = () => {
           <button
             type="button"
             onClick={() => setIsEditing(!isEditing)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-xs font-bold text-brand-800 shadow-2xs transition"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-xs font-bold text-brand-800 shadow-2xs transition cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>{isEditing ? 'Cancel Edit' : 'Edit Emergency Info'}</span>
@@ -323,7 +323,7 @@ export const EmergencyCard = () => {
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-brand-200 hover:bg-brand-50 text-brand-800 text-xs font-bold transition"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-brand-200 hover:bg-brand-50 text-brand-800 text-xs font-bold transition cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-brand-600" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied' : 'Copy Link'}</span>
@@ -334,7 +334,7 @@ export const EmergencyCard = () => {
                 onClick={handleGenerateNewToken}
                 disabled={generating}
                 title="Regenerate New 24-hr Token"
-                className="p-2 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 transition border border-brand-200"
+                className="p-2 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 transition border border-brand-200 cursor-pointer"
               >
                 <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
               </button>
@@ -367,8 +367,9 @@ export const EmergencyCard = () => {
                   <select
                     value={bloodGroup}
                     onChange={(e) => setBloodGroup(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-brand-200 focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full p-2.5 rounded-xl border border-brand-200 focus:ring-2 focus:ring-brand-500 bg-white text-xs font-semibold text-slate-800"
                   >
+                    <option value="">-- Not Specified (Select) --</option>
                     {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
                       <option key={bg} value={bg}>{bg}</option>
                     ))}
@@ -380,10 +381,10 @@ export const EmergencyCard = () => {
                   <select
                     value={organDonor ? 'yes' : 'no'}
                     onChange={(e) => setOrganDonor(e.target.value === 'yes')}
-                    className="w-full p-2.5 rounded-xl border border-brand-200 focus:ring-2 focus:ring-brand-500 bg-white"
+                    className="w-full p-2.5 rounded-xl border border-brand-200 focus:ring-2 focus:ring-brand-500 bg-white text-xs font-semibold text-slate-800"
                   >
-                    <option value="yes">Yes (Organ Donor)</option>
                     <option value="no">No</option>
+                    <option value="yes">Yes (Organ Donor)</option>
                   </select>
                 </div>
               </div>
@@ -525,14 +526,14 @@ export const EmergencyCard = () => {
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 rounded-xl border border-brand-200 text-slate-600 font-semibold"
+                  className="px-4 py-2 rounded-xl border border-brand-200 text-slate-600 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold flex items-center gap-1.5 shadow-2xs"
+                  className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{saving ? 'Saving...' : 'Save Profile'}</span>
@@ -541,26 +542,32 @@ export const EmergencyCard = () => {
             </form>
           ) : (
             /* High-Contrast Card Display */
-            <div className="bg-gradient-to-br from-brand-950 via-slate-900 to-brand-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl flex flex-col justify-between border border-brand-800/50 space-y-6">
+            <div className="bg-gradient-to-br from-slate-950 via-brand-950 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl flex flex-col justify-between border border-brand-800/60 space-y-6">
               <div>
-                <div className="flex items-start justify-between border-b border-brand-800 pb-4 mb-5">
+                <div className="flex items-start justify-between border-b border-brand-800/80 pb-4 mb-5">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-brand-300">
                       EMERGENCY CARD PREVIEW
                     </span>
-                    <h2 className="text-xl font-bold mt-0.5">
+                    <h2 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight drop-shadow-sm">
                       {patientName}
                     </h2>
-                    <p className="text-xs text-brand-200 font-mono mt-0.5">
+                    <p className="text-xs text-brand-200 font-mono mt-1">
                       ABHA: {abhaId}
                     </p>
                   </div>
 
                   <div className="text-right">
                     <span className="text-xs text-brand-200 block font-medium">Blood Group</span>
-                    <span className="text-3xl font-black text-white tracking-tight">
-                      {bloodGroup}
-                    </span>
+                    {bloodGroup ? (
+                      <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                        {bloodGroup}
+                      </span>
+                    ) : (
+                      <span className="inline-block mt-1 text-xs font-bold text-slate-300 bg-white/10 px-2.5 py-1 rounded-lg border border-white/20">
+                        Not Set
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -615,7 +622,7 @@ export const EmergencyCard = () => {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-brand-800 flex items-center justify-between text-[11px] text-brand-300">
+              <div className="pt-3 border-t border-brand-800/80 flex items-center justify-between text-[11px] text-brand-300">
                 <span>Organ Donor: <strong className="text-white">{organDonor ? 'YES' : 'NO'}</strong></span>
                 <span className="font-mono">ABDM QR Integrated</span>
               </div>

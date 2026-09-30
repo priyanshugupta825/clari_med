@@ -141,8 +141,8 @@ export const PublicEmergencyView = () => {
               <span className="text-[10px] font-bold text-red-300 uppercase tracking-widest block">
                 BLOOD
               </span>
-              <span className="text-3xl sm:text-4xl font-black text-white tracking-tighter">
-                {data.blood_group || 'N/A'}
+              <span className={`font-black text-white tracking-tighter block mt-0.5 ${data.blood_group ? 'text-3xl sm:text-4xl' : 'text-xs text-red-200'}`}>
+                {data.blood_group || 'Not Set'}
               </span>
             </div>
           </div>
