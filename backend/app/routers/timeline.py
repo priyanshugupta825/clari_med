@@ -275,9 +275,9 @@ def _seed_demo_timeline(db: Session, user_id: str):
 @router.get("/", response_model=TimelineResponse)
 def get_health_timeline(
     request: Request,
-    user_id: Optional[str] = Query(None, description="Optional target patient User ID"),
-    record_type: Optional[str] = Query(None, description="Filter by record_type (prescription, lab_report, consultation, discharge_summary)"),
-    search: Optional[str] = Query(None, description="Search keyword for doctor, facility, diagnosis, medicine, or complaints"),
+    user_id: Optional[str] = None,
+    record_type: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     auth_user_id: str = Depends(get_user_id_from_request),
 ):
@@ -285,7 +285,10 @@ def get_health_timeline(
     Returns the chronological Health Timeline of extracted clinical encounters,
     complete with nested prescriptions, lab results, and source document references.
     """
-    target_user_id = user_id or auth_user_id
+    target_user_id = user_id if (isinstance(user_id, str) and len(user_id) > 1) else auth_user_id
+    if not isinstance(target_user_id, str) or len(target_user_id) < 2:
+        target_user_id = "demo-user-123"
+
     user_name = request.headers.get("x-user-name")
     user_email = request.headers.get("x-user-email")
     user_abha = request.headers.get("x-user-abha")
@@ -296,16 +299,26 @@ def get_health_timeline(
     if user_email:
         same_email_users = db.query(User.id).filter(User.email == user_email).all()
         for u in same_email_users:
-            matching_user_ids.add(u[0])
+            if isinstance(u[0], str):
+                matching_user_ids.add(u[0])
 
-    # Base query sorted chronologically descending
+    # Find all documents belonging to these user IDs
+    matching_docs = db.query(Document.id).filter(Document.user_id.in_(list(matching_user_ids))).all()
+    matching_doc_ids = [d[0] for d in matching_docs]
+
+    # Query records by matching user IDs or document IDs
     query = (
         db.query(ExtractedRecord)
-        .filter(ExtractedRecord.user_id.in_(list(matching_user_ids)))
+        .filter(
+            or_(
+                ExtractedRecord.user_id.in_(list(matching_user_ids)),
+                ExtractedRecord.document_id.in_(matching_doc_ids) if matching_doc_ids else False
+            )
+        )
         .order_by(desc(ExtractedRecord.record_date), desc(ExtractedRecord.created_at))
     )
 
-    if record_type and record_type.lower() != "all":
+    if record_type and isinstance(record_type, str) and record_type.lower() != "all":
         query = query.filter(ExtractedRecord.record_type == record_type.lower())
 
     records = query.all()

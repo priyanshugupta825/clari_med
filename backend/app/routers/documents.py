@@ -45,15 +45,38 @@ def _get_or_create_user(
     """
     Ensures a matching user row exists in the database for foreign key integrity
     and stays synchronized with the user's registered name and ABHA ID.
+    Handles unique email constraints gracefully without crashing.
     """
+    # 1. Try finding user by user_id
     user = db.query(User).filter(User.id == user_id).first()
     clean_suffix = "".join(c for c in user_id if c.isalnum())[:10] or "usr"
     default_abha = f"91-{clean_suffix[:4]}-{clean_suffix[4:8] or '4123'}-{clean_suffix[8:12] or '8890'}"
-    
+
+    # 2. If not found by user_id, check if a user with this email already exists
+    if not user and email:
+        user_by_email = db.query(User).filter(User.email == email).first()
+        if user_by_email:
+            if full_name and (user_by_email.full_name == "Patient User" or not user_by_email.full_name):
+                user_by_email.full_name = full_name
+            if abha_id and (not user_by_email.abha_id or user_by_email.abha_id.startswith("91-4521-demo")):
+                user_by_email.abha_id = abha_id
+            try:
+                db.commit()
+                db.refresh(user_by_email)
+            except Exception:
+                db.rollback()
+            return user_by_email
+
     if not user:
+        # Determine a safe unique email to insert
+        target_email = email or f"patient_{clean_suffix}@abdm.gov.in"
+        existing_email = db.query(User).filter(User.email == target_email).first()
+        if existing_email:
+            target_email = f"{clean_suffix}_{target_email}"
+
         user = User(
             id=user_id,
-            email=email or f"patient_{clean_suffix}@abdm.gov.in",
+            email=target_email,
             full_name=full_name or "Patient User",
             abha_id=abha_id or default_abha,
         )
@@ -65,17 +88,9 @@ def _get_or_create_user(
             db.rollback()
             user = db.query(User).filter(User.id == user_id).first()
             if not user:
-                user = User(
-                    id=user_id,
-                    email=email or f"patient_{clean_suffix}@abdm.gov.in",
-                    full_name=full_name or "Patient User",
-                    abha_id=abha_id or default_abha,
-                )
-                db.add(user)
-                db.commit()
-                db.refresh(user)
+                user = db.query(User).filter(User.email == target_email).first()
     else:
-        # Update user name / abha if provided and was default
+        # Update user name / abha / email if provided
         updated = False
         if full_name and (user.full_name == "Patient User" or not user.full_name):
             user.full_name = full_name
@@ -83,15 +98,18 @@ def _get_or_create_user(
         if abha_id and (not user.abha_id or user.abha_id.startswith("91-4521-demo")):
             user.abha_id = abha_id
             updated = True
-        if email and not user.email:
-            user.email = email
-            updated = True
+        if email and (not user.email or user.email.startswith("patient_")):
+            email_taken = db.query(User).filter(User.email == email, User.id != user.id).first()
+            if not email_taken:
+                user.email = email
+                updated = True
         if updated:
             try:
                 db.commit()
                 db.refresh(user)
             except Exception:
                 db.rollback()
+
     return user
 
 
