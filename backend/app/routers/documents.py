@@ -121,6 +121,7 @@ def get_user_id_from_request(
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_and_extract_document(
+    request: Request,
     file: UploadFile = File(...),
     document_type_hint: Optional[str] = Form("prescription"),
     db: Session = Depends(get_db),
@@ -150,8 +151,12 @@ async def upload_and_extract_document(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
 
+    user_name = request.headers.get("x-user-name")
+    user_email = request.headers.get("x-user-email")
+    user_abha = request.headers.get("x-user-abha")
+
     # Ensure user exists in DB
-    _get_or_create_user(db, user_id)
+    _get_or_create_user(db, user_id, email=user_email, full_name=user_name, abha_id=user_abha)
 
     doc_id = str(uuid.uuid4())
     file_data_base64 = base64.b64encode(file_bytes).decode("utf-8")
@@ -306,16 +311,29 @@ async def upload_and_extract_document(
 
 @router.get("/", response_model=List[DocumentResponse])
 def list_documents(
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
     """
     Returns all stored documents in the patient's Health Vault.
+    Unified across email to ensure zero record loss.
     """
-    _get_or_create_user(db, user_id)
+    user_name = request.headers.get("x-user-name")
+    user_email = request.headers.get("x-user-email")
+    user_abha = request.headers.get("x-user-abha")
+
+    _get_or_create_user(db, user_id, email=user_email, full_name=user_name, abha_id=user_abha)
+
+    matching_user_ids = {user_id}
+    if user_email:
+        same_email_users = db.query(User.id).filter(User.email == user_email).all()
+        for u in same_email_users:
+            matching_user_ids.add(u[0])
+
     documents = (
         db.query(Document)
-        .filter(Document.user_id == user_id)
+        .filter(Document.user_id.in_(list(matching_user_ids)))
         .order_by(Document.uploaded_at.desc())
         .all()
     )
@@ -326,15 +344,23 @@ def list_documents(
 @router.get("/{document_id}")
 def get_document_details(
     document_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
     """
     Fetches full document record including associated medicines, lab results, and extracted encounter.
     """
+    user_email = request.headers.get("x-user-email")
+    matching_user_ids = {user_id}
+    if user_email:
+        same_email_users = db.query(User.id).filter(User.email == user_email).all()
+        for u in same_email_users:
+            matching_user_ids.add(u[0])
+
     doc = (
         db.query(Document)
-        .filter(Document.id == document_id, Document.user_id == user_id)
+        .filter(Document.id == document_id, Document.user_id.in_(list(matching_user_ids)))
         .first()
     )
     if not doc:
@@ -358,6 +384,7 @@ def get_document_details(
 def confirm_document_extraction(
     document_id: str,
     confirmation: DocumentReviewConfirmation,
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
@@ -365,9 +392,16 @@ def confirm_document_extraction(
     Allows the patient to review, edit, and confirm the AI extracted structured records.
     Marks records as verified by user.
     """
+    user_email = request.headers.get("x-user-email")
+    matching_user_ids = {user_id}
+    if user_email:
+        same_email_users = db.query(User.id).filter(User.email == user_email).all()
+        for u in same_email_users:
+            matching_user_ids.add(u[0])
+
     doc = (
         db.query(Document)
-        .filter(Document.id == document_id, Document.user_id == user_id)
+        .filter(Document.id == document_id, Document.user_id.in_(list(matching_user_ids)))
         .first()
     )
     if not doc:
@@ -403,15 +437,23 @@ def confirm_document_extraction(
 @router.delete("/{document_id}")
 def delete_document(
     document_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     user_id: str = Depends(get_user_id_from_request),
 ):
     """
     Deletes a document from the vault and cascades to associated extracted records.
     """
+    user_email = request.headers.get("x-user-email")
+    matching_user_ids = {user_id}
+    if user_email:
+        same_email_users = db.query(User.id).filter(User.email == user_email).all()
+        for u in same_email_users:
+            matching_user_ids.add(u[0])
+
     doc = (
         db.query(Document)
-        .filter(Document.id == document_id, Document.user_id == user_id)
+        .filter(Document.id == document_id, Document.user_id.in_(list(matching_user_ids)))
         .first()
     )
     if not doc:

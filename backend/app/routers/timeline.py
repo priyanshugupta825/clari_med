@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc
 
@@ -274,6 +274,7 @@ def _seed_demo_timeline(db: Session, user_id: str):
 @router.get("", response_model=TimelineResponse)
 @router.get("/", response_model=TimelineResponse)
 def get_health_timeline(
+    request: Request,
     user_id: Optional[str] = Query(None, description="Optional target patient User ID"),
     record_type: Optional[str] = Query(None, description="Filter by record_type (prescription, lab_report, consultation, discharge_summary)"),
     search: Optional[str] = Query(None, description="Search keyword for doctor, facility, diagnosis, medicine, or complaints"),
@@ -285,12 +286,22 @@ def get_health_timeline(
     complete with nested prescriptions, lab results, and source document references.
     """
     target_user_id = user_id or auth_user_id
-    _get_or_create_user(db, target_user_id)
+    user_name = request.headers.get("x-user-name")
+    user_email = request.headers.get("x-user-email")
+    user_abha = request.headers.get("x-user-abha")
+
+    _get_or_create_user(db, target_user_id, email=user_email, full_name=user_name, abha_id=user_abha)
+
+    matching_user_ids = {target_user_id}
+    if user_email:
+        same_email_users = db.query(User.id).filter(User.email == user_email).all()
+        for u in same_email_users:
+            matching_user_ids.add(u[0])
 
     # Base query sorted chronologically descending
     query = (
         db.query(ExtractedRecord)
-        .filter(ExtractedRecord.user_id == target_user_id)
+        .filter(ExtractedRecord.user_id.in_(list(matching_user_ids)))
         .order_by(desc(ExtractedRecord.record_date), desc(ExtractedRecord.created_at))
     )
 

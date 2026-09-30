@@ -111,16 +111,43 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
+    // Helper for deterministic user ID and ABHA ID based on user email
+    const generateDeterministicUserId = (emailStr) => {
+      const clean = (emailStr || '').toLowerCase().trim();
+      let hash = 0;
+      for (let i = 0; i < clean.length; i++) {
+        hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+        hash |= 0;
+      }
+      const cleanPrefix = clean.replace(/[^a-z0-9]/g, '').slice(0, 8) || 'usr';
+      return `usr_${cleanPrefix}_${Math.abs(hash)}`;
+    };
+
+    const generateDeterministicAbhaId = (emailStr) => {
+      const clean = (emailStr || '').toLowerCase().trim();
+      let hash = 5381;
+      for (let i = 0; i < clean.length; i++) {
+        hash = ((hash << 5) + hash) + clean.charCodeAt(i);
+        hash |= 0;
+      }
+      const p1 = String((Math.abs(hash) % 9000) + 1000);
+      const p2 = String((Math.abs(hash >> 3) % 9000) + 1000);
+      const p3 = String((Math.abs(hash >> 6) % 9000) + 1000);
+      return `91-${p1}-${p2}-${p3}`;
+    };
+
     // Local authentication fallback for unconfigured environments
     const cleanName = trimmedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Patient User';
     const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    const deterministicId = generateDeterministicUserId(trimmedEmail);
+    const deterministicAbha = generateDeterministicAbhaId(trimmedEmail);
     
     const localUser = {
-      id: 'usr_' + Math.random().toString(36).substring(2, 10),
+      id: deterministicId,
       email: trimmedEmail,
       user_metadata: {
         full_name: formattedName,
-        abha_id: '91-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000),
+        abha_id: deterministicAbha,
       },
     };
 
@@ -163,12 +190,39 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
+    const generateDeterministicUserId = (emailStr) => {
+      const clean = (emailStr || '').toLowerCase().trim();
+      let hash = 0;
+      for (let i = 0; i < clean.length; i++) {
+        hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+        hash |= 0;
+      }
+      const cleanPrefix = clean.replace(/[^a-z0-9]/g, '').slice(0, 8) || 'usr';
+      return `usr_${cleanPrefix}_${Math.abs(hash)}`;
+    };
+
+    const generateDeterministicAbhaId = (emailStr) => {
+      const clean = (emailStr || '').toLowerCase().trim();
+      let hash = 5381;
+      for (let i = 0; i < clean.length; i++) {
+        hash = ((hash << 5) + hash) + clean.charCodeAt(i);
+        hash |= 0;
+      }
+      const p1 = String((Math.abs(hash) % 9000) + 1000);
+      const p2 = String((Math.abs(hash >> 3) % 9000) + 1000);
+      const p3 = String((Math.abs(hash >> 6) % 9000) + 1000);
+      return `91-${p1}-${p2}-${p3}`;
+    };
+
+    const deterministicId = generateDeterministicUserId(trimmedEmail);
+    const deterministicAbha = metadata.abha_id || generateDeterministicAbhaId(trimmedEmail);
+
     const localUser = {
-      id: 'usr_' + Math.random().toString(36).substring(2, 10),
+      id: deterministicId,
       email: trimmedEmail,
       user_metadata: {
         full_name: metadata.full_name || trimmedEmail.split('@')[0],
-        abha_id: metadata.abha_id || '91-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000),
+        abha_id: deterministicAbha,
         phone_number: metadata.phone_number || undefined,
       },
     };

@@ -173,10 +173,16 @@ def get_public_emergency_card(
     user = db.query(User).filter(User.id == token_rec.user_id).first()
     emg_info = _get_or_seed_emergency_info(db, token_rec.user_id)
 
+    matching_uids = {token_rec.user_id}
+    if user and user.email:
+        same_email_users = db.query(User.id).filter(User.email == user.email).all()
+        for u in same_email_users:
+            matching_uids.add(u[0])
+
     # Query Active Medicines for THIS user ONLY
     active_meds = (
         db.query(Medicine)
-        .filter(Medicine.user_id == token_rec.user_id, Medicine.is_active == True)
+        .filter(Medicine.user_id.in_(list(matching_uids)), Medicine.is_active == True)
         .all()
     )
 
