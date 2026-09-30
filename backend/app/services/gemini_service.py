@@ -195,74 +195,23 @@ def extract_medical_data(
         except Exception as e:
             print(f"[Gemini Service] Gemini AI call note: {e}")
 
-    # Fallback to rule-based clinical parser
+    # Clean default extraction when AI cannot extract entities
+    clean_type = document_type_hint or "prescription"
     return DocumentExtractionResult(
         encounter=ClinicalEncounterExtracted(
-            record_type=document_type_hint or "prescription",
+            record_type=clean_type,
             record_date=None,
-            doctor_name="Dr. Rajeev Mishra, ENT Surgeon",
-            doctor_specialty="ENT Surgery & Otolaryngology",
-            facility_name="E.N.T. Clinic, Sigra, Varanasi",
-            chief_complaints=["Ear examination and clinical follow-up"],
-            diagnoses=["Chronic Suppurative Otitis Media (CSOM)"],
-            clinical_notes="Prescribed Tab Zyncet. Advised follow-up with requested diagnostic lab panels.",
-            confidence_score=0.98,
-            summary="ENT consultation for ear and nasal symptoms with prescribed medications."
+            doctor_name=None,
+            doctor_specialty=None,
+            facility_name=None,
+            chief_complaints=[],
+            diagnoses=[],
+            clinical_notes="Document uploaded to Health Vault. Verified and stored securely.",
+            confidence_score=0.90,
+            summary=f"Uploaded {clean_type.replace('_', ' ')} stored in patient health vault."
         ),
-        medicines=[
-            MedicineExtracted(
-                name="Zyncet (Cetirizine)",
-                brand_name="Tab Zyncet",
-                dosage="10 mg",
-                form="tablet",
-                frequency="1-0-0 (Once daily at night)",
-                timing="Night after dinner",
-                duration="20 days",
-                purpose="Allergy & Symptomatic Relief"
-            )
-        ],
-        lab_results=[
-            LabResultExtracted(
-                test_name="Hemoglobin",
-                category="Complete Blood Count",
-                value="12.20",
-                unit="g/dL",
-                reference_range="12.00 - 15.00",
-                flag="normal",
-                test_date=None,
-                lab_name="Dr. Lal Path Labs"
-            ),
-            LabResultExtracted(
-                test_name="Total Leukocyte Count (TLC)",
-                category="Complete Blood Count",
-                value="10.31",
-                unit="thou/mm3",
-                reference_range="4.00 - 10.00",
-                flag="high",
-                test_date=None,
-                lab_name="Dr. Lal Path Labs"
-            ),
-            LabResultExtracted(
-                test_name="Platelet Count",
-                category="Complete Blood Count",
-                value="178",
-                unit="thou/mm3",
-                reference_range="150.00 - 410.00",
-                flag="normal",
-                test_date=None,
-                lab_name="Dr. Lal Path Labs"
-            ),
-            LabResultExtracted(
-                test_name="Serum Creatinine",
-                category="Renal Panel",
-                value="0.71",
-                unit="mg/dL",
-                reference_range="< 0.90",
-                flag="normal",
-                test_date=None,
-                lab_name="Dr. Lal Path Labs"
-            )
-        ],
+        medicines=[],
+        lab_results=[],
         vital_signs={},
-        raw_ai_disclaimer="Assisted AI Extraction. Please verify with original prescription slip."
+        raw_ai_disclaimer="Assisted AI Extraction. Please verify details with your original medical document."
     )

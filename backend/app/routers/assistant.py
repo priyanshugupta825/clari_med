@@ -76,16 +76,8 @@ def chat_with_clinical_assistant(
     ]
 
     em_info = db.query(EmergencyInfo).filter(EmergencyInfo.user_id == user_id).first()
-    allergies = em_info.allergies if em_info and em_info.allergies else ["No known drug allergies"]
+    allergies = em_info.allergies if em_info and em_info.allergies else []
     chronic = em_info.chronic_conditions if em_info and em_info.chronic_conditions else []
-
-    if not med_list:
-        med_list = [
-            {"name": "Telmisartan", "dosage": "40 mg", "frequency": "1-0-0", "timing": "Morning", "purpose": "Blood Pressure Control", "prescribed_by": "Dr. Arun Sharma"},
-            {"name": "Atorvastatin", "dosage": "10 mg", "frequency": "0-0-1", "timing": "Night", "purpose": "Lipid Management", "prescribed_by": "Dr. Arun Sharma"},
-        ]
-        allergies = ["Penicillin (Severe Rash)"]
-        chronic = ["Hypertension", "Dyslipidemia"]
 
     history_dicts = [{"role": h.role, "content": h.content} for h in payload.chat_history] if payload.chat_history else []
 

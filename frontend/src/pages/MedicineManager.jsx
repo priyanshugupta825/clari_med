@@ -24,7 +24,7 @@ import { getDocumentViewUrl } from '../lib/documentUrl';
 
 export const MedicineManager = () => {
   const { user } = useAuth();
-  const userId = user?.id || 'demo-user-123';
+  const userId = user?.id || 'patient_user';
   const todayKey = new Date().toISOString().split('T')[0];
   const storageKey = `clarimed_med_adherence_${userId}_${todayKey}`;
 
